@@ -53,7 +53,7 @@
                             <field name="duration" readonly="1" string="Duration (Days)"/>
                         </group>
                         <field name="room_ids" domain="[('state', '=', 'available')]" readonly="state != 'draft'">
-                            <list string="Available Rooms" editable="false" create="false" delete="false">
+                            <list string="Available Rooms" readonly="1">
                                 <field name="name"/>
                                 <field name="room_type"/>
                             </list>
