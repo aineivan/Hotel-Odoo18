@@ -21,6 +21,7 @@ class HotelBookHistory(models.Model):
     name = fields.Char(string="Name", required=True, default="New Booking", copy=False, readonly=True)
     duration = fields.Integer(string="Duration", compute='_compute_duration')
     has_sale_order = fields.Boolean(string="Has Sale Order", default=False, compute='_compute_has_sale_order')
+    note = fields.Text(string="Notes")
     state = fields.Selection([
         ('draft', 'Draft'),
         ('booked', 'Booked'),
