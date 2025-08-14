@@ -10,3 +10,10 @@ class ProductTemplate(models.Model):
     # field constraint 
     amenity_line_ids = fields.One2many('hotel.amenity.line', 'product_id', string="Amenities")
     room_ids = fields.One2many('hotel.room', 'room_type', string="Rooms")
+    priority = fields.Selection([
+        ('0', 'Very Low'),
+        ('1', 'Low'),
+        ('2', 'Normal'),
+        ('3', 'High'),
+        ('4', 'Very High')
+    ], string='Priority', default='2', widget="priority")
