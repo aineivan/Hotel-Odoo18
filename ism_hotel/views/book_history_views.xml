@@ -72,17 +72,9 @@
                             </field>
                         </page>
 
-                        <!-- Notes & Communication -->
-                        <page string="Notes &amp; Chatter">
-                            <field name="note" placeholder="Add any special instructions..." nolabel="1"/>
-                            <div class="oe_chatter">
-                                <field name="message_follower_ids"/>
-                                <field name="activity_ids"/>
-                                <field name="message_ids"/>
-                            </div>
-                        </page>
-                    </notebook>
+                        
                 </sheet>
+                <chatter/>
             </form>
         </field>
     </record>
