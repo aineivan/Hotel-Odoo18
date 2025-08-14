@@ -1,19 +1,29 @@
 from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError
+import logging
 
-import datetime
+_logger = logging.getLogger(__name__)
+
 
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
-    
-    hotel_book_history_ids = fields.One2many('hotel.book.history', 'sale_order_id', string="Hotel Book History")
-    hotel_book_history_count = fields.Integer(string="Hotel Book History Count", compute="_compute_hotel_book_history_count", store=False)
-    
+
+    hotel_book_history_ids = fields.One2many(
+        'hotel.book.history',
+        'sale_order_id',
+        string="Hotel Book History",
+    )
+    hotel_book_history_count = fields.Integer(
+        string="Hotel Book History Count",
+        compute="_compute_hotel_book_history_count",
+        store=False,
+    )
+
     @api.depends('hotel_book_history_ids')
     def _compute_hotel_book_history_count(self):
-        for record in self:
-            record.hotel_book_history_count = len(record.hotel_book_history_ids)
-            
+        for order in self:
+            order.hotel_book_history_count = len(order.hotel_book_history_ids)
+
     def action_view_hotel_book_history(self):
         self.ensure_one()
         action = self.env.ref('ism_hotel.action_hotel_book_history_all').read()[0]
@@ -23,40 +33,42 @@ class SaleOrder(models.Model):
     @api.depends('order_line.price_subtotal', 'order_line.price_tax', 'order_line.price_total')
     def _compute_amounts(self):
         res = super(SaleOrder, self)._compute_amounts()
-        # TODO : compute amount_untaxed, amount_tax, amount_total will be counted with duration
-        print('compute amounts')
+
         for order in self:
-            amount_untaxed = amount_tax = 0.0
-            for line in order.order_line:
-                amount_untaxed += line.price_subtotal
-                amount_tax += line.price_tax
+            amount_untaxed = sum(line.price_subtotal or 0.0 for line in order.order_line)
+            amount_tax = sum(line.price_tax or 0.0 for line in order.order_line)
             order.update({
                 'amount_untaxed': amount_untaxed,
                 'amount_tax': amount_tax,
                 'amount_total': amount_untaxed + amount_tax,
             })
-            print('amount_total : ', order.amount_total)
-            
+
         return res
-    
+
     @api.depends_context('lang')
-    @api.depends('order_line.tax_id', 'order_line.price_unit', 'amount_total', 'amount_untaxed', 'currency_id')
+    @api.depends('order_line.tax_id', 'order_line.price_unit', 'order_line.discount',
+                 'order_line.product_uom_qty', 'order_line.duration',
+                 'amount_total', 'amount_untaxed', 'currency_id')
     def _compute_tax_totals(self):
         res = super(SaleOrder, self)._compute_tax_totals()
+
         for order in self:
-            order_lines = order.order_line.filtered(lambda x: not x.display_type)
-            
-            tax_model = self.env['account.tax']
+            order_lines = order.order_line.filtered(lambda l: not l.display_type)
+            if not order_lines:
+                continue
 
             tax_base_line_dicts = []
+            for line in order_lines:
+                duration = getattr(line, 'duration', 1.0) or 1.0
+                base_dict = line._convert_to_tax_base_line_dict()
+                base_dict['quantity'] = (base_dict.get('quantity') or 0.0) * duration
+                tax_base_line_dicts.append(base_dict)
 
-            for order_line in order_lines:
-                tax_base_line_dict = order_line._convert_to_tax_base_line_dict()
-                tax_base_line_dict['quantity'] *= order_line.duration
-                tax_base_line_dicts.append(tax_base_line_dict)
-
-            currency_to_use = order.currency_id or order.company_id.currency_id
-            tax_totals = tax_model._prepare_tax_totals(tax_base_line_dicts, currency_to_use)
-            order.tax_totals = tax_totals
+            currency = order.currency_id or order.company_id.currency_id
+            try:
+                tax_totals = self.env['account.tax']._prepare_tax_totals(tax_base_line_dicts, currency)
+                order.tax_totals = tax_totals
+            except Exception as e:
+                _logger.exception("Failed to compute tax_totals for SO %s: %s", order.name, e)
 
         return res
