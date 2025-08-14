@@ -49,7 +49,7 @@
                                             <button class="btn btn-info" type="object" name="open_checkin_form" string="Check In" context="{'default_room_id': active_id}"/>
                                         </t>
                                         <t t-if="record.state.raw_value == 'occupied'">
-                                            <button class="btn btn-info" type="object" name="open_checkout_form" string="Check Out" context="{'default_room_id': active_id}"/>
+                                            <button class="btn btn-info" type="object" name="open_checkout_form" string="Check Out" context="{'default_room_id': id}"/>
                                         </t>
                                     </div>
                                     <div class="oe_kanban_bottom_right" invisible="state == 'booked'">
