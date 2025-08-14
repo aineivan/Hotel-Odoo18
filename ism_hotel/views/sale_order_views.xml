@@ -21,11 +21,11 @@
                 <field name="amount_total"/>
             </xpath>
 
-            <xpath expr="//notebook/page[@name='order_lines']/field[@name='order_line']/tree/field[@name='price_unit']" position="before">
+            <xpath expr="//notebook/page[@name='order_lines']/field[@name='order_line']/list/field[@name='price_unit']" position="before">
                 <field name="duration" string="Duration (Days)"/>
             </xpath>
 
-            <!-- <xpath expr="//notebook/page[@name='order_lines']/field[@name='order_line']/tree/field[@name='price_total']" position="after">
+            <!-- <xpath expr="//notebook/page[@name='order_lines']/field[@name='order_line']/list/field[@name='price_total']" position="after">
                 <field name="price_total" string="Room Type" attrs="{'readonly': True}"/>
             </xpath> -->
         </field>
