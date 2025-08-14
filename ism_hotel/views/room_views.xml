@@ -40,13 +40,13 @@
                                 <div class="o_kanban_record_bottom">
                                     <div class="oe_kanban_bottom_left">
                                         <t t-if="record.state.raw_value == 'maintenance'">
-                                            <button type="object" class="btn btn-success" name="action_available" string="Set to available" context="{'default_room_id': active_id}"/>
+                                            <button type="object" class="btn btn-success" name="action_available" string="Set to available" context="{'default_room_id': id}"/>
                                         </t>
                                         <t t-if="record.state.raw_value == 'available'">
-                                            <button type="object" class="btn btn-info" name="open_booking_form" string="Book" context="{'default_room_id': active_id}"/>
+                                            <button type="object" class="btn btn-info" name="open_booking_form" string="Book" context="{'default_room_id': id}"/>
                                         </t>
                                         <t t-if="record.state.raw_value == 'booked'">
-                                            <button class="btn btn-info" type="object" name="open_checkin_form" string="Check In" context="{'default_room_id': active_id}"/>
+                                            <button class="btn btn-info" type="object" name="open_checkin_form" string="Check In" context="{'default_room_id': id}"/>
                                         </t>
                                         <t t-if="record.state.raw_value == 'occupied'">
                                             <button class="btn btn-info" type="object" name="open_checkout_form" string="Check Out" context="{'default_room_id': id}"/>
