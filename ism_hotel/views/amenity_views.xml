@@ -4,10 +4,10 @@
         <field name="name">hotel.amenity.tree</field>
         <field name="model">hotel.amenity</field>
         <field name="arch" type="xml">
-            <tree>
+            <list
                 <field name="name"/>
                 <field name="description"/>
-            </tree>
+            </list>
         </field>
     </record>
 

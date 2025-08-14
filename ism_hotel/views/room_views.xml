@@ -4,11 +4,11 @@
         <field name="name">hotel.room.tree</field>
         <field name="model">hotel.room</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name"/>
                 <field name="room_type"/>
                 <field name="state" widget="badge" decoration-success="state == 'available'" decoration-warning="state == 'occupied'" decoration-danger="state == 'maintenance'" decoration-info="state == 'booked'" />
-            </tree>
+            </list>
         </field>
     </record>
 

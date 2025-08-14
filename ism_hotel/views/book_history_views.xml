@@ -4,14 +4,14 @@
         <field name="name">hotel.book.history.view.tree</field>
         <field name="model">hotel.book.history</field>
         <field name="arch" type="xml">
-            <tree create="false" delete="false">
+            <list create="false" delete="false">
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="check_in"/>
                 <field name="check_out"/>
                 <field name="room_ids" widget="many2many_tags"/>
                 <field name="state"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -53,10 +53,10 @@
                             <field name="duration" readonly="1" string="Duration (Days)"/>
                         </group>
                         <field name="room_ids" domain="[('state', '=', 'available')]" readonly="state != 'draft'">
-                            <tree string="Available Rooms" editable="false" create="false" delete="false">
+                            <list string="Available Rooms" editable="false" create="false" delete="false">
                                 <field name="name"/>
                                 <field name="room_type"/>
-                            </tree>
+                            </list>
                         </field>
                     </group>
                 </sheet>

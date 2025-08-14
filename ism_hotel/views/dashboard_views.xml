@@ -4,13 +4,13 @@
         <field name="name">hotel.dashboard.tree</field>
         <field name="model">hotel.book.history</field>
         <field name="arch" type="xml">
-            <tree delete="false" string="Reservations" default_order="check_in asc">
+            <list delete="false" string="Reservations" default_order="check_in asc">
                 <field name="room_ids" widget="many2many_tags"/>
                 <field name="partner_id"/>
                 <field name="check_in" options="{'format': 'dd/MM/yyyy'}"/>
                 <field name="check_out"/>
                 <field name="state" widget="badge" decoration-info="state == 'booked'"  decoration-success="state == 'checked_out'" decoration-warning="state == 'checked_in'"/>
-            </tree>
+            </list>
         </field>
     </record>
 

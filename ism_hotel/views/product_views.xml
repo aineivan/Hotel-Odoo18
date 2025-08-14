@@ -16,13 +16,13 @@
         <field name="name">product.template.tree</field>
         <field name="model">product.template</field>
         <field name="arch" type="xml">
-            <tree string="Room Types" sample="1">
+            <list_price string="Room Types" sample="1">
                 <!-- <field name="sale_ok" invisible="1" hide=""/> -->
                 <field name="name" string="Room Type"/>
                 <field name="list_price" string="Price" widget='monetary' options="{'currency_field': 'currency_id'}" optional="show"/> 
                 <!-- decoration-muted="not sale_ok" -->
                 <field name="standard_price" widget='monetary' options="{'currency_field': 'cost_currency_id'}" optional="show" readonly="1"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -89,18 +89,18 @@
                         </group>
                     </group>
                     <field name="amenity_line_ids">
-                        <tree editable="bottom">
+                        <list editable="bottom">
                             <field name="sequence" widget="handle"/>
                             <field name="amenity_id" string="Amenities"/>
-                        </tree>
+                        </list>
                     </field>
                 </page>
                 <page string="Room List" name="room_information" modifiers="{'invisible': [('is_room','=',False)]}">
                     <field name="room_ids">
-                        <tree edit="False" create="False" delete="False">
+                        <list edit="False" create="False" delete="False">
                             <field name="name" string="Room Number"/>
                             <!-- <field name="status"/> -->
-                        </tree>
+                        </list>
                     </field>
                 </page>
             </xpath>
