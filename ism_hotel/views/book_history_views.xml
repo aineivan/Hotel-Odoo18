@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="hotel_book_history_view_tree" model="ir.ui.view">
+        <field name="name">hotel.book.history.view.tree</field>
+        <field name="model">hotel.book.history</field>
+        <field name="arch" type="xml">
+            <tree create="false" delete="false">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="check_in"/>
+                <field name="check_out"/>
+                <field name="room_ids" widget="many2many_tags"/>
+                <field name="state"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="hotel_book_history_view_form" model="ir.ui.view">
+        <field name="name">hotel.book.history.view.form</field>
+        <field name="model">hotel.book.history</field>
+        <field name="arch" type="xml">
+            <form string="Reservations">
+                <header>
+                    <button name="action_book" type="object" class="oe_highlight" string="Book Now" invisible="state != 'draft'"/>
+                    <button name="action_checkin" type="object" class="oe_highlight" string="Check In" invisible="state != 'booked'"/>
+                    <button name="action_checkout" type="object" class="oe_highlight" string="Check Out" invisible="state != 'checked_in'"/>
+                    <button name="action_cancel" type="object" class="btn-danger" string="Cancel" invisible="state == 'checked_out'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="booked,checked_in,checked_out" on_change="1"/>
+                </header>
+                <sheet>
+                    <div name="button_box" class="oe_button_box">
+                        <button name="action_view_sale_order"
+                                class="oe_stat_button"
+                                icon="fa-money"
+                                type="object"
+                                invisible="not has_sale_order"
+                                string="Sale Order">
+                        </button>
+                    </div>
+                    <field name="has_sale_order" invisible="1"/>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="check_in" readonly="state != 'draft'"/>
+                            <field name="partner_id" string="Customer" modifiers="{'readonly': [('state', 'in', ['booked', 'checked_in', 'checked_out'])]}"/>
+                        </group>
+                        <group>
+                            <field name="check_out" readonly="state != 'draft'"/>
+                            <field name="duration" readonly="1" string="Duration (Days)"/>
+                        </group>
+                        <field name="room_ids" domain="[('state', '=', 'available')]" readonly="state != 'draft'">
+                            <tree string="Available Rooms" editable="false" create="false" delete="false">
+                                <field name="name"/>
+                                <field name="room_type"/>
+                            </tree>
+                        </field>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="hotel_book_history_view_search" model="ir.ui.view">
+        <field name="name">hotel.book.history.view.search</field>
+        <field name="model">hotel.book.history</field>
+        <field name="arch" type="xml">
+            <search string="Reservation History">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="check_in"/>
+                <field name="check_out"/>
+                <field name="room_ids"/>
+                <field name="state"/>
+
+                <filter name="filter_checked_out" string="Checked Out" domain="[('state', '=', 'checked_out')]"/>
+                <filter name="filter_checked_in" string="Checked In" domain="[('state', '=', 'checked_in')]"/>
+                <filter name="filter_booked" string="Currently Booked" domain="[('state', '=', 'booked')]"/>
+
+                <group>
+                    <filter name="group_by_room" string="Room" context="{'group_by': 'room_ids'}"/>
+                    <separator/>
+                    <filter name="group_by_checkin_date" string="Check in Date" context="{'group_by': 'check_in'}"/>
+                    <filter name="group_by_checkout_date" string="Check out Date" context="{'group_by': 'check_out'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    
+    <record id="action_hotel_book_history" model="ir.actions.act_window">
+        <field name="name">Book History</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">hotel.book.history</field>
+        <field name="search_view_id" ref="hotel_book_history_view_search"/>
+        <field name="context">{'search_default_filter_checked_out': 1}</field>
+    </record>
+
+    <record id="action_hotel_book_history_view_tree" model="ir.actions.act_window.view">
+        <field name="sequence" eval="1"/>
+        <field name="view_mode">tree</field>
+        <field name="view_id" ref="hotel_book_history_view_tree"/>
+        <field name="act_window_id" ref="action_hotel_book_history"/>
+    </record>
+
+    <record id="action_hotel_book_history_view_form" model="ir.actions.act_window.view">
+        <field name="sequence" eval="2"/>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="hotel_book_history_view_form"/>
+        <field name="act_window_id" ref="action_hotel_book_history"/>
+    </record>
+
+    <record id="action_hotel_book_history_all" model="ir.actions.act_window">
+        <field name="name">All Bookings</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">hotel.book.history</field>
+        <field name="search_view_id" ref="hotel_book_history_view_search"/>
+    </record>
+
+    <record id="action_hotel_book_history_view_all_tree" model="ir.actions.act_window.view">
+        <field name="sequence" eval="10"/>
+        <field name="view_mode">tree</field>
+        <field name="view_id" ref="hotel_book_history_view_tree"/>
+        <field name="act_window_id" ref="action_hotel_book_history_all"/>
+    </record>
+</odoo>
