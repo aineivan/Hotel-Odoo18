@@ -3,8 +3,13 @@ from odoo import models, fields, api
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
-    hotel_book_history_ids = fields.One2many('hotel.book.history', 'sale_order_id', string="Hotel Book History")
-    hotel_book_history_count = fields.Integer(string="Hotel Book History Count", compute="_compute_hotel_book_history_count")
+    hotel_book_history_ids = fields.One2many(
+        'hotel.book.history', 'sale_order_id', string="Hotel Book History"
+    )
+    hotel_book_history_count = fields.Integer(
+        string="Hotel Book History Count", compute="_compute_hotel_book_history_count"
+    )
+    tax_totals = fields.Serialized(string="Tax Totals", default=dict)
 
     @api.depends('hotel_book_history_ids')
     def _compute_hotel_book_history_count(self):
@@ -29,14 +34,12 @@ class SaleOrder(models.Model):
                 'amount_total': untaxed + tax,
             })
 
-    @api.depends('order_line.tax_id', 'order_line.price_unit', 'order_line.duration')
+    @api.depends('order_line.tax_id', 'order_line.price_unit', 'order_line.duration', 'order_line.product_uom_qty')
     def _compute_tax_totals(self):
         for order in self:
             tax_totals = {}
-            for line in order.order_line:
-                if line.display_type:
-                    continue
-                qty = line.product_uom_qty * line.duration
+            for line in order.order_line.filtered(lambda l: not l.display_type):
+                qty = line.product_uom_qty * (line.duration or 1)
                 taxes = line.tax_id.compute_all(
                     line.price_unit,
                     order.currency_id,
@@ -47,4 +50,4 @@ class SaleOrder(models.Model):
                 for t in taxes['taxes']:
                     name = t['name']
                     tax_totals[name] = tax_totals.get(name, 0.0) + t['amount']
-            order.tax_totals = tax_totals
+            order.tax_totals = tax_totals or {}
