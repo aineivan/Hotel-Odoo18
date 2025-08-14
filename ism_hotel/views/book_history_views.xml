@@ -65,10 +65,10 @@
                         <!-- Available Rooms -->
                         <page string="Available Rooms">
                             <field name="room_ids" domain="[('state', '=', 'available')]" readonly="state != 'draft'">
-                                <tree string="Available Rooms" editable="bottom">
+                                <list string="Available Rooms" editable="bottom">
                                     <field name="name"/>
                                     <field name="room_type"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
 
