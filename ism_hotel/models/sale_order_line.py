@@ -1,41 +1,60 @@
-from odoo import models, api
+from odoo import models, fields, api
+from odoo.fields import Command
 
-class SaleOrder(models.Model):
-    _inherit = 'sale.order'
+class SaleOrderLine(models.Model):
+    _inherit = 'sale.order.line'
+    
+    duration = fields.Integer(string="Duration", required=True, default=1)
+    
+    @api.depends('product_uom_qty', 'discount', 'price_unit', 'tax_id', 'duration')
+    def _compute_amount(self):
+        for line in self:
+            # Calculate price including duration
+            duration = line.duration or 1.0
+            price = line.price_unit * line.product_uom_qty * duration
 
-    @api.depends_context('lang')
-    @api.depends('order_line.tax_id', 'order_line.price_unit', 'order_line.discount',
-                 'order_line.product_uom_qty', 'order_line.duration',
-                 'amount_total', 'amount_untaxed', 'currency_id')
-    def _compute_tax_totals(self):
-        res = super(SaleOrder, self)._compute_tax_totals()
+            taxes = line.tax_id.compute_all(
+                price,
+                currency=line.currency_id or line.order_id.currency_id,
+                quantity=1.0,
+                product=line.product_id,
+                partner=line.order_id.partner_id
+            )
 
-        for order in self:
-            order_lines = order.order_line.filtered(lambda l: not l.display_type)
-            if not order_lines:
-                continue
+            line.price_subtotal = taxes['total_excluded']
+            line.price_tax = sum(t.get('amount', 0.0) for t in taxes.get('taxes', []))
+            line.price_total = taxes['total_included']
 
-            currency = order.currency_id or order.company_id.currency_id
-            tax_totals = {
-                'amount_untaxed': 0.0,
-                'amount_tax': 0.0,
-                'amount_total': 0.0,
-            }
+    def _prepare_invoice_line(self, **optional_values):
+        """Prepare invoice line values"""
+        self.ensure_one()
+        res = {
+            'display_type': self.display_type or 'product',
+            'sequence': self.sequence,
+            'name': self.name,
+            'product_id': self.product_id.id,
+            'product_uom_id': self.product_uom.id,
+            'quantity': self.qty_to_invoice,
+            'discount': self.discount,
+            'duration': self.duration,
+            'price_unit': self.price_unit,
+            'tax_ids': [Command.set(self.tax_id.ids)],
+            'sale_line_ids': [Command.link(self.id)],
+            'is_downpayment': self.is_downpayment,
+        }
 
-            for line in order_lines:
-                duration = line.duration or 1.0
-                price = line.price_unit * line.product_uom_qty * duration
-                taxes = line.tax_id.compute_all(
-                    price,
-                    currency=currency,
-                    quantity=1.0,
-                    product=line.product_id,
-                    partner=order.partner_id
-                )
-                tax_totals['amount_untaxed'] += taxes['total_excluded']
-                tax_totals['amount_tax'] += sum(t.get('amount', 0.0) for t in taxes.get('taxes', []))
+        analytic_account_id = self.order_id.analytic_account_id.id
+        if self.analytic_distribution and not self.display_type:
+            res['analytic_distribution'] = self.analytic_distribution
+        if analytic_account_id and not self.display_type:
+            analytic_account_id = str(analytic_account_id)
+            if 'analytic_distribution' in res:
+                res['analytic_distribution'][analytic_account_id] = res['analytic_distribution'].get(analytic_account_id, 0) + 100
+            else:
+                res['analytic_distribution'] = {analytic_account_id: 100}
 
-            tax_totals['amount_total'] = tax_totals['amount_untaxed'] + tax_totals['amount_tax']
-            order.tax_totals = tax_totals
-
+        if optional_values:
+            res.update(optional_values)
+        if self.display_type:
+            res['account_id'] = False
         return res
