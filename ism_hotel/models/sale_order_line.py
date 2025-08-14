@@ -1,4 +1,5 @@
 from odoo import models, fields, api
+from odoo.fields import Command
 
 class SaleOrderLine(models.Model):
     _inherit = 'sale.order.line'
@@ -12,11 +13,11 @@ class SaleOrderLine(models.Model):
                 line.update({
                     'price_subtotal': 0.0,
                     'price_tax': 0.0,
-                    'price_total': 0.0,
+                    'price_total': 0.0
                 })
                 continue
 
-            qty = line.product_uom_qty * line.duration
+            qty = line.product_uom_qty * (line.duration or 1)
             taxes = line.tax_id.compute_all(
                 line.price_unit,
                 line.order_id.currency_id,
@@ -25,10 +26,13 @@ class SaleOrderLine(models.Model):
                 partner=line.order_id.partner_id
             )
 
+            amount_untaxed = taxes['total_excluded']
+            amount_tax = taxes['total_included'] - amount_untaxed
+
             line.update({
-                'price_tax': sum(t['amount'] for t in taxes['taxes']),
-                'price_total': taxes['total_included'],
-                'price_subtotal': taxes['total_excluded'],
+                'price_subtotal': amount_untaxed,
+                'price_tax': amount_tax,
+                'price_total': amount_untaxed + amount_tax,
             })
 
     def _prepare_invoice_line(self, **optional_values):
@@ -43,8 +47,8 @@ class SaleOrderLine(models.Model):
             'discount': self.discount,
             'duration': self.duration,
             'price_unit': self.price_unit,
-            'tax_ids': [(6, 0, self.tax_id.ids)],
-            'sale_line_ids': [(6, 0, [self.id])],
+            'tax_ids': [Command.set(self.tax_id.ids)],
+            'sale_line_ids': [Command.link(self.id)],
             'is_downpayment': self.is_downpayment,
         }
         analytic_account_id = self.order_id.analytic_account_id.id
