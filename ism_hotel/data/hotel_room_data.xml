@@ -7,7 +7,7 @@
         <record id="product_template_single_room" model="product.template">
             <field name="name">Single Room</field>
             <field name="categ_id" ref="product.product_category_all"/>
-            <field name="detailed_type">service</field>
+            <field name="type">service</field>
             <field name="list_price">100000.00</field>
             <field name="standard_price">0.00</field>
             <field name="is_room">True</field>
@@ -16,7 +16,7 @@
         <record id="product_template_double_room" model="product.template">
             <field name="name">Double Room</field>
             <field name="categ_id" ref="product.product_category_all"/>
-            <field name="detailed_type">service</field>
+            <field name="type">service</field>
             <field name="list_price">200000.00</field>
             <field name="standard_price">0.00</field>
             <field name="is_room">True</field>
@@ -25,7 +25,7 @@
         <record id="product_template_deluxe_room" model="product.template">
             <field name="name">Deluxe Room</field>
             <field name="categ_id" ref="product.product_category_all"/>
-            <field name="detailed_type">service</field>
+            <field name="type">service</field>
             <field name="list_price">300000.00</field>
             <field name="standard_price">0.00</field>
             <field name="is_room">True</field>
