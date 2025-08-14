@@ -16,7 +16,7 @@
         <field name="name">product.template.tree</field>
         <field name="model">product.template</field>
         <field name="arch" type="xml">
-            <list_price string="Room Types" sample="1">
+            <list>
                 <!-- <field name="sale_ok" invisible="1" hide=""/> -->
                 <field name="name" string="Room Type"/>
                 <field name="list_price" string="Price" widget='monetary' options="{'currency_field': 'currency_id'}" optional="show"/> 
