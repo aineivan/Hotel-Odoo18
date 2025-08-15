@@ -135,43 +135,47 @@ class HotelBookHistory(models.Model):
     
     # function create sale order 
     def _create_sale_order(self, result):
+        """Create a Sale Order for the booked rooms without using removed Odoo 17 methods."""
         order_lines = []
         room_types = []
         room_type_dict_qty = {}
         room_type_dict_str_join = {}
-        
-        # get all selected room, then count and group by room type
+
+        # Group rooms by room type
         for room in result.room_ids:
-            if room.room_type.name not in room_type_dict_qty:
+            if room.room_type.id not in room_type_dict_qty:
                 room_types.append(room.room_type)
-                room_type_dict_qty[room.room_type.name] = 1
-                room_type_dict_str_join[room.room_type.name] = [room.name]
+                room_type_dict_qty[room.room_type.id] = 1
+                room_type_dict_str_join[room.room_type.id] = [room.name]
             else:
-                room_type_dict_qty[room.room_type.name] += 1
-                room_type_dict_str_join[room.room_type.name].append(room.name)
-                
-        # join room name
-        for room_type in room_types:
-            if len(room_type_dict_str_join[room_type.name]) > 1:
-                room_type_dict_str_join[room_type.name] = ', '.join(room_type_dict_str_join[room_type.name])
+                room_type_dict_qty[room.room_type.id] += 1
+                room_type_dict_str_join[room.room_type.id].append(room.name)
+
+        # Join room names for notes
+        for rt in room_types:
+            names_list = room_type_dict_str_join[rt.id]
+            if len(names_list) > 1:
+                room_type_dict_str_join[rt.id] = ', '.join(names_list)
             else:
-                room_type_dict_str_join[room_type.name] = room_type_dict_str_join[room_type.name][0]
-                
-        # create order lines and notes below for each type of room
-        for room_type in room_types:
+                room_type_dict_str_join[rt.id] = names_list[0]
+
+        # Build sale order lines
+        for rt in room_types:
+            # Main product line
             order_lines.append((0, 0, {
-                'product_template_id': room_type.id,
-                'product_id': room_type.product_variant_ids[0].id,
-                'name': room_type.name,
-                'product_uom_qty': room_type_dict_qty[room_type.name],
-                'price_unit': room_type.list_price,
-                'duration': result.duration,
+                'product_id': rt.product_variant_ids[:1].id,  # first variant
+                'name': rt.name,
+                'product_uom_qty': room_type_dict_qty[rt.id],
+                'price_unit': rt.list_price,
+                'duration': result.duration,  # optional field if you have custom
             }))
+            # Note line (optional, display_type for notes)
             order_lines.append((0, 0, {
                 'display_type': 'line_note',
-                'name': room_type.name + ' (' + room_type_dict_str_join[room_type.name] + ')',
+                'name': f"{rt.name} ({room_type_dict_str_join[rt.id]})",
             }))
-        
+
+        # Create sale order safely
         return self.env['sale.order'].create({
             'partner_id': result.partner_id.id,
             'date_order': result.check_in,
