@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<odoo>
+    <record id="hotel_room_type_view_search" model="ir.ui.view">
+        <field name="name">product.template.search</field>
+        <field name="model">product.template</field>
+        <field name="arch" type="xml">
+            <search string="Product">
+                <field name="name" string="Room Type"/>
+                <filter string="is Room" name="filter_is_room" domain="[('is_room', '=', True)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="hotel_room_type_view_list" model="ir.ui.view">
+        <field name="name">product.template.list</field>
+        <field name="model">product.template</field>
+        <field name="arch" type="xml">
+            <list>
+                <!-- <field name="sale_ok" invisible="1" hide=""/> -->
+                <field name="name" string="Room Type"/>
+                <field name="list_price" string="Price" widget='monetary' options="{'currency_field': 'currency_id'}" optional="show"/> 
+                <!-- decoration-muted="not sale_ok" -->
+                <field name="standard_price" widget='monetary' options="{'currency_field': 'cost_currency_id'}" optional="show" readonly="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_room_type_view_kanban" model="ir.ui.view">
+        <field name="name">hotel.room_type.kanban</field>
+        <field name="model">product.template</field>
+        <field name="arch" type="xml">
+            <kanban sample="1" class="o_kanban_product_template">
+                <field name="id"/>
+                <field name="product_variant_count"/>
+                <field name="currency_id"/>
+                <field name="activity_state"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_card oe_kanban_global_click">
+                            <div class="o_kanban_image me-1">
+                                <img t-att-src="kanban_image('product.template', 'image_128', record.id.raw_value)" alt="Product" class="o_image_64_contain"/>
+                            </div>
+                            <div class="oe_kanban_details">
+                                <div class="o_kanban_record_top mb-0">
+                                    <div class="o_kanban_record_headings">
+                                        <strong class="o_kanban_record_title">
+                                            <field name="name"/>
+                                        </strong>
+                                    </div>
+                                    <field name="priority" widget="priority"/>
+                                </div>
+                                <t t-if="record.default_code.value">[<field name="default_code"/>]</t>
+                                <div t-if="record.product_variant_count.value &gt; 1" groups="product.group_product_variant">
+                                    <strong>
+                                        <t t-esc="record.product_variant_count.value"/> Variants
+                                    </strong>
+                                </div>
+                                <div name="product_lst_price" class="mt-1">
+                                    Price: <field name="list_price" widget="monetary" options="{'currency_field': 'currency_id', 'field_digits': True}"></field>
+                                </div>
+                                <div name="hotel_room_available_count" class="mt-1">
+                                    <!-- X Rooms Available -->
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="product_template_form_view_inherit" model="ir.ui.view">
+        <field name="name">product.template.form.view.inherit</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='options']" position="inside">
+                <span class="d-inline-block">
+                    <field name="is_room" id="is_room"/>
+                    <label for="is_room"/>
+                </span>
+            </xpath>
+            <xpath expr="//page[@name='purchase']" position="after">
+                <page string="Room Information" name="room_information" modifiers="{'invisible': [('is_room','=',False)]}">
+                    <group>
+                        <group col="1">
+                            <field name="max_allowed_person"/>
+                        </group>
+                    </group>
+                    <field name="amenity_line_ids">
+                        <list editable="bottom">
+                            <field name="sequence" widget="handle"/>
+                            <field name="amenity_id" string="Amenities"/>
+                        </list>
+                    </field>
+                </page>
+                <page string="Room List" name="room_information" modifiers="{'invisible': [('is_room','=',False)]}">
+                    <field name="room_ids">
+                        <list edit="False" create="False" delete="False">
+                            <field name="name" string="Room Number"/>
+                            <!-- <field name="status"/> -->
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_hotel_room_type" model="ir.actions.act_window">
+        <field name="name">Room Types</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">product.template</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="search_view_id" ref="hotel_room_type_view_search"/>
+        <field name="context">{'search_default_filter_is_room': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a new room type
+            </p>
+        </field>
+    </record>
+
+    <record id="action_hotel_room_type_view_list" model="ir.actions.act_window.view">
+        <field name="sequence" eval="2"/>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="hotel_room_type_view_list"/>
+        <field name="act_window_id" ref="action_hotel_room_type"/>
+    </record>
+
+    <record id="action_hotel_room_type_view_kanban" model="ir.actions.act_window.view">
+        <field name="sequence" eval="1"/>
+        <field name="view_mode">kanban</field>
+        <field name="view_id" ref="hotel_room_type_view_kanban"/>
+        <field name="act_window_id" ref="action_hotel_room_type"/>
+    </record>
+</odoo>

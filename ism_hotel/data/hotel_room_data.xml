@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <data>
+        <!--
+        Resource: product.template
+        -->
+        <record id="product_template_single_room" model="product.template">
+            <field name="name">Single Room</field>
+            <field name="categ_id" ref="product.product_category_all"/>
+            <field name="type">service</field>
+            <field name="list_price">100000.00</field>
+            <field name="standard_price">0.00</field>
+            <field name="is_room">True</field>
+            <field name="purchase_ok">False</field>
+        </record>
+        <record id="product_template_double_room" model="product.template">
+            <field name="name">Double Room</field>
+            <field name="categ_id" ref="product.product_category_all"/>
+            <field name="type">service</field>
+            <field name="list_price">200000.00</field>
+            <field name="standard_price">0.00</field>
+            <field name="is_room">True</field>
+            <field name="purchase_ok">False</field>
+        </record>
+        <record id="product_template_deluxe_room" model="product.template">
+            <field name="name">Deluxe Room</field>
+            <field name="categ_id" ref="product.product_category_all"/>
+            <field name="type">service</field>
+            <field name="list_price">300000.00</field>
+            <field name="standard_price">0.00</field>
+            <field name="is_room">True</field>
+            <field name="purchase_ok">False</field>
+        </record>
+        <!-- 
+        Resource: hotel.amenity
+        -->
+        <record id="hotel_amenity_one_bed" model="hotel.amenity">
+            <field name="name">Single Bed</field>
+            <field name="description"></field>
+        </record>
+        <record id="hotel_amenity_two_beds" model="hotel.amenity">
+            <field name="name">Double Bed</field>
+            <field name="description"></field>
+        </record>
+        <record id="hotel_amenity_king_size_bed" model="hotel.amenity">
+            <field name="name">King Size Bed</field>
+            <field name="description"></field>
+        </record>
+        <!-- 
+        Resource: hotel.amenity.line
+        -->
+        <record id="product_amenity_line_single_room_1" model="hotel.amenity.line">
+            <field name="product_id" ref="product_template_single_room"/>
+            <field name="amenity_id" ref="hotel_amenity_one_bed"/>
+        </record>
+        <record id="product_amenity_line_double_room_1" model="hotel.amenity.line">
+            <field name="product_id" ref="product_template_double_room"/>
+            <field name="amenity_id" ref="hotel_amenity_two_beds"/>
+        </record>
+        <record id="product_amenity_line_deluxe_room_1" model="hotel.amenity.line">
+            <field name="product_id" ref="product_template_deluxe_room"/>
+            <field name="amenity_id" ref="hotel_amenity_king_size_bed"/>
+        </record>
+
+        <record id="hotel_room_single_room_1" model="hotel.room">
+            <field name="name">Room 101</field>
+            <field name="room_type" ref="product_template_single_room"/>
+        </record>
+        <record id="hotel_room_single_room_2" model="hotel.room">
+            <field name="name">Room 102</field>
+            <field name="room_type" ref="product_template_single_room"/>
+        </record>
+        <record id="hotel_room_single_room_3" model="hotel.room">
+            <field name="name">Room 103</field>
+            <field name="room_type" ref="product_template_single_room"/>
+        </record>
+        <record id="hotel_room_single_room_4" model="hotel.room">
+            <field name="name">Room 104</field>
+            <field name="room_type" ref="product_template_single_room"/>
+        </record>
+        <record id="hotel_room_single_room_5" model="hotel.room">
+            <field name="name">Room 105</field>
+            <field name="room_type" ref="product_template_single_room"/>
+        </record>
+        <record id="hotel_room_single_room_6" model="hotel.room">
+            <field name="name">Room 106</field>
+            <field name="room_type" ref="product_template_single_room"/>
+        </record>
+        <record id="hotel_room_single_room_7" model="hotel.room">
+            <field name="name">Room 107</field>
+            <field name="room_type" ref="product_template_single_room"/>
+        </record>
+        <record id="hotel_room_single_room_8" model="hotel.room">
+            <field name="name">Room 108</field>
+            <field name="room_type" ref="product_template_single_room"/>
+        </record>
+        <record id="hotel_room_single_room_9" model="hotel.room">
+            <field name="name">Room 109</field>
+            <field name="room_type" ref="product_template_single_room"/>
+        </record>
+        <record id="hotel_room_single_room_10" model="hotel.room">
+            <field name="name">Room 110</field>
+            <field name="room_type" ref="product_template_single_room"/>
+        </record>
+        
+        <record id="hotel_room_double_room_1" model="hotel.room">
+            <field name="name">Room 201</field>
+            <field name="room_type" ref="product_template_double_room"/>
+        </record>
+        <record id="hotel_room_double_room_2" model="hotel.room">
+            <field name="name">Room 202</field>
+            <field name="room_type" ref="product_template_double_room"/>
+        </record>
+        <record id="hotel_room_double_room_3" model="hotel.room">
+            <field name="name">Room 203</field>
+            <field name="room_type" ref="product_template_double_room"/>
+        </record>
+        <record id="hotel_room_double_room_4" model="hotel.room">
+            <field name="name">Room 204</field>
+            <field name="room_type" ref="product_template_double_room"/>
+        </record>
+        <record id="hotel_room_double_room_5" model="hotel.room">
+            <field name="name">Room 205</field>
+            <field name="room_type" ref="product_template_double_room"/>
+        </record>
+        <record id="hotel_room_double_room_6" model="hotel.room">
+            <field name="name">Room 206</field>
+            <field name="room_type" ref="product_template_double_room"/>
+        </record>
+        <record id="hotel_room_double_room_7" model="hotel.room">
+            <field name="name">Room 207</field>
+            <field name="room_type" ref="product_template_double_room"/>
+        </record>
+        <record id="hotel_room_double_room_8" model="hotel.room">
+            <field name="name">Room 208</field>
+            <field name="room_type" ref="product_template_double_room"/>
+        </record>
+        <record id="hotel_room_double_room_9" model="hotel.room">
+            <field name="name">Room 209</field>
+            <field name="room_type" ref="product_template_double_room"/>
+        </record>
+        <record id="hotel_room_double_room_10" model="hotel.room">
+            <field name="name">Room 210</field>
+            <field name="room_type" ref="product_template_double_room"/>
+        </record>
+
+        <record id="hotel_room_deluxe_room_1" model="hotel.room">
+            <field name="name">Room 301</field>
+            <field name="room_type" ref="product_template_deluxe_room"/>
+        </record>
+        <record id="hotel_room_deluxe_room_2" model="hotel.room">
+            <field name="name">Room 302</field>
+            <field name="room_type" ref="product_template_deluxe_room"/>
+        </record>
+        <record id="hotel_room_deluxe_room_3" model="hotel.room">
+            <field name="name">Room 303</field>
+            <field name="room_type" ref="product_template_deluxe_room"/>
+        </record>
+        <record id="hotel_room_deluxe_room_4" model="hotel.room">
+            <field name="name">Room 304</field>
+            <field name="room_type" ref="product_template_deluxe_room"/>
+        </record>
+        <record id="hotel_room_deluxe_room_5" model="hotel.room">
+            <field name="name">Room 305</field>
+            <field name="room_type" ref="product_template_deluxe_room"/>
+        </record>
+    </data>
+</odoo>

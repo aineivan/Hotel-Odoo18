@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="hotel_dashboard_view_list" model="ir.ui.view">
+        <field name="name">hotel.dashboard.list</field>
+        <field name="model">hotel.book.history</field>
+        <field name="arch" type="xml">
+            <list delete="false" string="Reservations" default_order="check_in asc">
+                <field name="room_ids" widget="many2many_tags"/>
+                <field name="partner_id"/>
+                <field name="check_in" options="{'format': 'dd/MM/yyyy'}"/>
+                <field name="check_out"/>
+                <field name="state" widget="badge" decoration-info="state == 'booked'"  decoration-success="state == 'checked_out'" decoration-warning="state == 'checked_in'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="hotel_dashboard_view_search" model="ir.ui.view">
+        <field name="name">hotel.book.history.view.search</field>
+        <field name="model">hotel.book.history</field>
+        <field name="arch" type="xml">
+            <search string="Reservations">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="check_in"/>
+                <field name="check_out"/>
+                <field name="room_ids"/>
+                <field name="state"/>
+
+                <filter name="filter_checked_out" string="Checked Out" domain="[('state', '=', 'checked_out')]"/>
+                <filter name="filter_checked_in" string="Checked In" domain="[('state', '=', 'checked_in')]"/>
+                <filter name="filter_booked" string="Currently Booked" domain="[('state', '=', 'booked')]"/>
+                
+                <group>
+                    <filter name="group_by_room" string="Room" context="{'group_by': 'room_ids'}"/>
+                    <separator/>
+                    <filter name="group_by_checkin_date" string="Check in Date" context="{'group_by': 'check_in'}"/>
+                    <filter name="group_by_checkout_date" string="Check out Date" context="{'group_by': 'check_out'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_hotel_dashboard" model="ir.actions.act_window">
+        <field name="name">Reservations</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">hotel.book.history</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="hotel_dashboard_view_search"/>
+        <field name="view_id" ref="hotel_dashboard_view_list"/>
+        <field name="context">{'search_default_filter_checked_in': 1, 'search_default_filter_booked': 1}</field>
+    </record>
+
+</odoo>
