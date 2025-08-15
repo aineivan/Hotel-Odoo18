@@ -1,6 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-ism_hotel.access_hotel_amenity,access_hotel_amenity,ism_hotel.model_hotel_amenity,base.group_user,1,1,1,1
-ism_hotel.access_hotel_amenity_line,access_hotel_amenity_line,ism_hotel.model_hotel_amenity_line,base.group_user,1,1,1,1
-ism_hotel.access_hotel_room,access_hotel_room,ism_hotel.model_hotel_room,base.group_user,1,1,1,1
-ism_hotel.access_hotel_book_history,access_hotel_book_history,ism_hotel.model_hotel_book_history,base.group_user,1,1,1,1
-ism_hotel.access_hotel_book_history_line,access_hotel_book_history_line,ism_hotel.model_hotel_book_history_line,base.group_user,1,1,1,1
