@@ -148,22 +148,24 @@ class RoomBookingLine(models.Model):
                                   '%Y-%m-%d %H:%M')
                         ))
 
-    @api.depends('uom_qty', 'price_unit', 'tax_ids')
+    @api.depends('price_unit', 'product_uom_qty', 'tax_id')
     def _compute_price_subtotal(self):
-        """Compute the amounts of the room booking line."""
         for line in self:
-            base_line = line._prepare_base_line_for_taxes_computation()
+            currency = line.currency_id or line.booking_id.currency_id or line.env.company.currency_id
+            # Fix bad rounding
+            if not currency.rounding or currency.rounding <= 0.0:
+                currency = self.env.company.currency_id  
+
+            base_line = {
+                'price_unit': line.price_unit,
+                'quantity': line.product_uom_qty,
+                'tax_ids': line.tax_id,
+                'currency_id': currency,
+            }
             self.env['account.tax']._add_tax_details_in_base_line(
-                base_line, self.env.company
-            )
-            line.price_subtotal = base_line['tax_details']['raw_total_excluded_currency']
-            line.price_total = base_line['tax_details']['raw_total_included_currency']
-            line.price_tax = line.price_total - line.price_subtotal
-            if (self.env.context.get('import_file', False) and
-                    not self.env.user.user_has_groups('account.group_account_manager')):
-                line.tax_id.invalidate_recordset(
-                    ['invoice_repartition_line_ids']
-                )
+                base_line, compute_cash_basis=False)
+            line.price_subtotal = base_line['price_subtotal']
+
 
     def _prepare_base_line_for_taxes_computation(self):
         """Convert the current record to a dictionary in order to use the
