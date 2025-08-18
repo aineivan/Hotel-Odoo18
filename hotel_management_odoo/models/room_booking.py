@@ -233,6 +233,26 @@ class RoomBooking(models.Model):
                                          help="This is the Total Amount for "
                                               "Fleet", tracking=5)
     
+    
+
+
+    @api.depends('room_line_ids.room_id', 'room_line_ids.checkin_date', 'room_line_ids.checkout_date', 'checkin_date', 'checkout_date')
+    def _compute_primary_room_id(self):
+        """Compute the primary room for calendar coloring"""
+        for booking in self:
+            if booking.room_line_ids:
+                booking.primary_room_id = booking.room_line_ids[0].room_id.id
+            else:
+                booking.primary_room_id = False
+
+    primary_room_id = fields.Many2one(
+        'hotel.room', 
+        string="Primary Room", 
+        compute='_compute_primary_room_id',
+        store=True,
+        help="Primary room for calendar display"
+    )
+
     @api.depends('room_line_ids.room_id')
     def _compute_primary_room_id(self):
         for booking in self:
@@ -240,14 +260,6 @@ class RoomBooking(models.Model):
                 booking.primary_room_id = booking.room_line_ids[0].room_id.id
             else:
                 booking.primary_room_id = False
-
-
-    primary_room_id = fields.Many2one(
-        'hotel.room',
-        string="Primary Room",
-        compute='_compute_primary_room_id',
-        store=True
-    )
 
     @api.model
     def create(self, vals_list):
