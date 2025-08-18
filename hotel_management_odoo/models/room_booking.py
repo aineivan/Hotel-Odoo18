@@ -234,7 +234,16 @@ class RoomBooking(models.Model):
                                               "Fleet", tracking=5)
     
     
-
+    def unlink(self):
+        """Override unlink to free up rooms when reservation is deleted"""
+        for booking in self:
+            if booking.room_line_ids:
+                for room_line in booking.room_line_ids:
+                    room_line.room_id.write({
+                        'status': 'available',
+                        'is_room_avail': True
+                    })
+        return super().unlink()
 
     @api.depends('room_line_ids.room_id', 'room_line_ids.checkin_date', 'room_line_ids.checkout_date', 'checkin_date', 'checkout_date')
     def _compute_primary_room_id(self):
@@ -539,15 +548,13 @@ class RoomBooking(models.Model):
         raise ValidationError(_("Please Enter Room Details"))
 
     def action_cancel(self):
-        """
-        @param self: object pointer
-        """
+        """Cancel reservation and free rooms"""
         if self.room_line_ids:
-            for room in self.room_line_ids:
-                room.room_id.write({
+            for room_line in self.room_line_ids:
+                room_line.room_id.write({
                     'status': 'available',
+                    'is_room_avail': True
                 })
-                room.room_id.is_room_avail = True
         self.write({"state": "cancel"})
 
     def action_maintenance_request(self):
