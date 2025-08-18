@@ -323,8 +323,8 @@
        <field name="model">room.booking</field>
        <field name="arch" type="xml">
               <calendar string="Room Booking Calendar"
-                     date_start="checkin_date"
-                     date_stop="checkout_date"
+                     date_start="booking_checkin_date"
+                     date_stop="booking_checkout_date"
                      color="primary_room_id">
               <field name="name"/>
               <field name="partner_id"/>

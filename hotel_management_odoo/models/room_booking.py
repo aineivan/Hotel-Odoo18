@@ -232,6 +232,29 @@ class RoomBooking(models.Model):
                                          help="This is the Total Amount for "
                                               "Fleet", tracking=5)
     
+    booking_checkin_date = fields.Datetime(
+        string="Booking Check In",
+        compute='_compute_booking_dates',
+        store=True,
+        help="Earliest check-in date across all rooms"
+    )
+
+
+    booking_checkout_date = fields.Datetime(
+        string="Booking Check Out",
+        compute='_compute_booking_dates',
+        store=True,
+        help="Latest check-out date across all rooms"
+    )
+
+    primary_room_id = fields.Many2one(
+        'hotel.room',
+        string="Primary Room",
+        compute='_compute_primary_room_id',
+        store=True,
+        help="Primary room for calendar display"
+    )
+    
     
     def unlink(self):
         """Override unlink to free up rooms when reservation is deleted"""
@@ -243,23 +266,27 @@ class RoomBooking(models.Model):
                         'is_room_avail': True
                     })
         return super().unlink()
-
-    @api.depends('room_line_ids.room_id', 'room_line_ids.checkin_date', 'room_line_ids.checkout_date', 'checkin_date', 'checkout_date')
-    def _compute_primary_room_id(self):
-        """Compute the primary room for calendar coloring"""
+    
+    @api.depends('room_line_ids.checkin_date', 'room_line_ids.checkout_date')
+    def _compute_booking_dates(self):
         for booking in self:
             if booking.room_line_ids:
-                booking.primary_room_id = booking.room_line_ids[0].room_id.id
+                booking.booking_checkin_date = min(
+                    booking.room_line_ids.mapped('checkin_date'))
+                booking.booking_checkout_date = max(
+                    booking.room_line_ids.mapped('checkout_date'))
             else:
-                booking.primary_room_id = False
+                booking.booking_checkin_date = False
+                booking.booking_checkout_date = False
 
-    primary_room_id = fields.Many2one(
-        'hotel.room', 
-        string="Primary Room", 
-        compute='_compute_primary_room_id',
-        store=True,
-        help="Primary room for calendar display"
-    )
+
+    @api.depends('room_line_ids.room_id')
+    def _compute_primary_room_id(self):
+        for booking in self:
+            booking.primary_room_id = booking.room_line_ids[:1].room_id if booking.room_line_ids else False
+
+    
+    
 
     @api.depends('room_line_ids.room_id')
     def _compute_primary_room_id(self):
