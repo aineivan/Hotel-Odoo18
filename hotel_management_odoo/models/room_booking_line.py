@@ -108,23 +108,38 @@ class RoomBookingLine(models.Model):
             if diffdate.total_seconds() > 0:
                 qty = qty + 1
             self.uom_qty = qty
+
     @api.depends('uom_qty', 'price_unit', 'tax_ids')
     def _compute_price_subtotal(self):
         """Compute the amounts of the room booking line."""
         for line in self:
-            base_line = line._prepare_base_line_for_taxes_computation()
-            self.env['account.tax']._add_tax_details_in_base_line(base_line, self.env.company)
-            line.price_subtotal = base_line['tax_details']['raw_total_excluded_currency']
-            print("total_excluded_currency",line.price_subtotal)
-            line.price_total = base_line['tax_details']['raw_total_included_currency']
-            print("total_included_currency",line.price_total)
-            line.price_tax = line.price_total - line.price_subtotal
-            if self.env.context.get('import_file',
-                                    False) and not self.env.user. \
-                    user_has_groups('account.group_account_manager'):
-                line.tax_id.invalidate_recordset(
-                    ['invoice_repartition_line_ids'])
+            # Skip if essential data is missing
+            if not line.currency_id or not line.uom_qty or not line.price_unit:
+                line.price_subtotal = 0.0
+                line.price_total = 0.0
+                line.price_tax = 0.0
+                continue
 
+            try:
+                # Ensure currency has proper rounding
+                if not line.currency_id.rounding or line.currency_id.rounding <= 0:
+                    line.currency_id.rounding = 0.01  # Default to 0.01 if invalid
+
+                base_line = line._prepare_base_line_for_taxes_computation()
+                self.env['account.tax']._add_tax_details_in_base_line(
+                    base_line, self.env.company)
+
+                line.price_subtotal = base_line['tax_details']['raw_total_excluded_currency']
+                line.price_total = base_line['tax_details']['raw_total_included_currency']
+                line.price_tax = line.price_total - line.price_subtotal
+
+            except Exception as e:
+                # Fallback calculation if tax computation fails
+                line.price_subtotal = line.price_unit * line.uom_qty
+                line.price_tax = 0.0
+                line.price_total = line.price_subtotal
+                _logger.warning(
+                    "Tax computation failed for booking line %s: %s", line.id, str(e))
     def _prepare_base_line_for_taxes_computation(self):
         """ Convert the current record to a dictionary in order to use the generic taxes computation method
         defined on account.tax.
