@@ -140,32 +140,28 @@ class RoomBookingLine(models.Model):
             },
         )
 
+
     @api.onchange('checkin_date', 'checkout_date', 'room_id')
     def onchange_checkin_date(self):
-        """On change of check-in date, check-out date, or room ID,
-           this method validates if the selected room is available
-           for the given dates. It searches for existing bookings
-           in the 'reserved' or 'check_in' state and checks for date
-           conflicts. If a conflict is found, a ValidationError is raised."""
-        records = self.env['room.booking'].search(
-            [('state', 'in', ['reserved', 'check_in'])])
-        for rec in records:
-            rec_room_id = rec.room_line_ids.room_id
-            rec_checkin_date = rec.room_line_ids.checkin_date
-            rec_checkout_date = rec.room_line_ids.checkout_date
-            if rec_room_id and rec_checkin_date and rec_checkout_date:
-                # Check for conflicts with existing room lines
-                for line in self:
-                    if line.id != rec.id and line.room_id == rec_room_id:
-                        # Check if the dates overlap
-                        if (rec_checkin_date <= line.checkin_date <= rec_checkout_date or
-                                rec_checkin_date <= line.checkout_date <= rec_checkout_date):
-                            raise ValidationError(
-                                _("Sorry, You cannot create a reservation for "
-                                  "this date since it overlaps with another "
-                                  "reservation..!!"))
-                        if rec_checkout_date <= line.checkout_date and rec_checkin_date >= line.checkin_date:
-                            raise ValidationError(
-                                "Sorry You cannot create a reservation for this"
-                                "date due to an existing reservation between "
-                                "this date")
+        """Validate room availability for the given dates"""
+        if not (self.checkin_date and self.checkout_date and self.room_id):
+            return
+
+        # Search for existing bookings for the same room
+        existing_bookings = self.env['room.booking.line'].search([
+            ('room_id', '=', self.room_id.id),
+            ('booking_id.state', 'in', ['reserved', 'check_in']),
+            ('id', '!=', self.id if self.id else 0) 
+        ])
+
+        for existing_line in existing_bookings:
+            # Check if dates overlap
+            if (self.checkin_date < existing_line.checkout_date and
+                    self.checkout_date > existing_line.checkin_date):
+                raise ValidationError(
+                    _("Room '%s' is already booked from %s to %s. "
+                    "Please choose different dates or another room.") % (
+                        self.room_id.name,
+                        existing_line.checkin_date.strftime('%Y-%m-%d %H:%M'),
+                        existing_line.checkout_date.strftime('%Y-%m-%d %H:%M')
+                    ))
