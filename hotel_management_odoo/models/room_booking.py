@@ -59,11 +59,10 @@ class RoomBooking(models.Model):
                                                    "once")
     checkin_date = fields.Datetime(string="Check In",
                                    help="Date of Checkin",
-                                   default=fields.Datetime.now())
+                                   )
     checkout_date = fields.Datetime(string="Check Out",
                                     help="Date of Checkout",
-                                    default=fields.Datetime.now() + timedelta(
-                                        hours=23, minutes=59, seconds=59))
+                                    )
     hotel_policy = fields.Selection([("prepaid", "On Booking"),
                                      ("manual", "On Check In"),
                                      ("picking", "On Checkout"),
