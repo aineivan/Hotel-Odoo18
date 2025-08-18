@@ -319,19 +319,19 @@
         </field>
     </record>
     <record id="room_booking_view_calendar" model="ir.ui.view">
-        <field name="name">room.booking.view.calendar</field>
-        <field name="model">room.booking</field>
-        <field name="arch" type="xml">
-            <calendar string="Room Booking Calendar"
-                      date_start="checkin_date"
-                      date_stop="checkout_date"
-                      color="room_id">
-                <field name="name"/>
-                <field name="partner_id"/>
-                <field name="room_line_ids"/>
-            </calendar>
-        </field>
-    </record>
+       <field name="name">room.booking.view.calendar</field>
+       <field name="model">room.booking</field>
+       <field name="arch" type="xml">
+              <calendar string="Room Booking Calendar"
+                     date_start="checkin_date"
+                     date_stop="checkout_date"
+                     color="primary_room_id">
+              <field name="name"/>
+              <field name="partner_id"/>
+              <field name="state"/>
+              </calendar>
+       </field>
+       </record>
 
     <!-- Update Action to include calendar -->
     <record id="room_booking_action" model="ir.actions.act_window">

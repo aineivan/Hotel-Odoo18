@@ -232,6 +232,22 @@ class RoomBooking(models.Model):
                                          compute='_compute_amount_untaxed',
                                          help="This is the Total Amount for "
                                               "Fleet", tracking=5)
+    
+    @api.depends('room_line_ids.room_id')
+    def _compute_primary_room_id(self):
+        for booking in self:
+            if booking.room_line_ids:
+                booking.primary_room_id = booking.room_line_ids[0].room_id.id
+            else:
+                booking.primary_room_id = False
+
+
+    primary_room_id = fields.Many2one(
+        'hotel.room',
+        string="Primary Room",
+        compute='_compute_primary_room_id',
+        store=True
+    )
 
     @api.model
     def create(self, vals_list):
