@@ -20,7 +20,7 @@
 #
 ###############################################################################
 from odoo import api, fields, models, tools, _
-from odoo.exceptions import ValidationError
+from odoo.exceptions import ValidationError, UserError
 
 
 class HotelRoom(models.Model):
@@ -116,3 +116,52 @@ class HotelRoom(models.Model):
                 # For now, we'll just set it to available.
                 room.status = 'available'
                 room.is_room_avail = True
+
+    def action_set_maintenance(self):
+        """Set room for maintenance - button action from form view"""
+        # Check if room has active bookings
+        active_bookings = self.env['room.booking.line'].search([
+            ('room_id', '=', self.id),
+            ('booking_id.state', 'in', ['reserved', 'check_in']),
+            ('checkout_date', '>', fields.Datetime.now())
+        ])
+
+        if active_bookings:
+            booking_details = []
+            for booking in active_bookings:
+                booking_details.append(
+                    f"Booking {booking.booking_id.name} "
+                    f"(Check-out: {booking.checkout_date.strftime('%Y-%m-%d %H:%M')})"
+                )
+
+            raise UserError(
+                _("Cannot set room '%s' for maintenance. "
+                  "Active bookings found:\n%s") %
+                (self.name, '\n'.join(booking_details))
+            )
+
+        self.write({'is_unavailable_for_maintenance': True})
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': 'success',
+                'message': f"Room '{self.name}' set for maintenance successfully!",
+                'next': {'type': 'ir.actions.act_window_close'},
+            }
+        }
+
+    def action_clear_maintenance(self):
+        """Clear room maintenance - button action from form view"""
+        self.write({'is_unavailable_for_maintenance': False})
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': 'success',
+                'message': f"Room '{self.name}' maintenance cleared successfully!",
+                'next': {'type': 'ir.actions.act_window_close'},
+            }
+        }

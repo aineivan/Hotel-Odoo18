@@ -77,6 +77,27 @@
             </form>
         </field>
     </record>
+    <record id="server_action_set_room_maintenance" model="ir.actions.server">
+        <field name="name">Set Room for Maintenance</field>
+        <field name="model_id" ref="model_hotel_room"/>
+        <field name="binding_model_id" ref="model_hotel_room"/>
+        <field name="binding_view_types">list,form</field>
+        <field name="state">code</field>
+        <field name="code">
+\
+        </field>
+    </record>
+
+    <record id="server_action_clear_room_maintenance" model="ir.actions.server">
+        <field name="name">Clear Room Maintenance</field>
+        <field name="model_id" ref="model_hotel_room"/>
+        <field name="binding_model_id" ref="model_hotel_room"/>
+        <field name="binding_view_types">list,form</field>
+        <field name="state">code</field>
+        <field name="code">
+
+        </field>
+    </record>
     <!--    Hotel Room menu action-->
     <record id="hotel_room_action" model="ir.actions.act_window">
         <field name="name">Rooms</field>
