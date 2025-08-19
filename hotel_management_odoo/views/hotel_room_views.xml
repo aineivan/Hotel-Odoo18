@@ -78,68 +78,68 @@
         </field>
     </record>
     <record id="server_action_set_room_maintenance" model="ir.actions.server">
-        <field name="name">Set Room for Maintenance</field>
-        <field name="model_id" ref="model_hotel_room"/>
-        <field name="binding_model_id" ref="model_hotel_room"/>
-        <field name="binding_view_types">list,form</field>
-        <field name="state">code</field>
-        <field name="code"><![CDATA[
-    # Check if any selected rooms have active bookings
-    rooms_with_bookings = []
-    for room in records:
-        active_bookings = env['room.booking.line'].search([
-            ('room_id', '=', room.id),
-            ('booking_id.state', 'in', ['reserved', 'check_in']),
-            ('checkout_date', '>', fields.Datetime.now())
-        ])
-        if active_bookings:
-            rooms_with_bookings.append(room.name)
+    <field name="name">Set Room for Maintenance</field>
+    <field name="model_id" ref="model_hotel_room"/>
+    <field name="binding_model_id" ref="model_hotel_room"/>
+    <field name="binding_view_types">list,form</field>
+    <field name="state">code</field>
+    <field name="code"><![CDATA[
+# Check if any selected rooms have active bookings
+rooms_with_bookings = []
+for room in records:
+    active_bookings = env['room.booking.line'].search([
+        ('room_id', '=', room.id),
+        ('booking_id.state', 'in', ['reserved', 'check_in']),
+        ('checkout_date', '>', fields.Datetime.now())
+    ])
+    if active_bookings:
+        rooms_with_bookings.append(room.name)
 
-    if rooms_with_bookings:
-        raise UserError("Cannot set maintenance for rooms with active bookings: %s" % ', '.join(rooms_with_bookings))
+if rooms_with_bookings:
+    raise UserError("Cannot set maintenance for rooms with active bookings: %s" % ', '.join(rooms_with_bookings))
 
-    # Set maintenance for selected rooms
-    records.write({
-        'is_unavailable_for_maintenance': True
-    })
+# Set maintenance for selected rooms
+records.write({
+    'is_unavailable_for_maintenance': True
+})
 
-    # Show success message
-    action = {
-        'type': 'ir.actions.client',
-        'tag': 'display_notification',
-        'params': {
-            'type': 'success',
-            'message': '%d room(s) set for maintenance successfully!' % len(records),
-            'next': {'type': 'ir.actions.act_window_close'},
-        }
+# Show success message
+action = {
+    'type': 'ir.actions.client',
+    'tag': 'display_notification',
+    'params': {
+        'type': 'success',
+        'message': '%d room(s) set for maintenance successfully!' % len(records),
+        'next': {'type': 'ir.actions.act_window_close'},
     }
-    ]]></field>
-    </record>
+}
+]]></field>
+</record>
 
-    <record id="server_action_clear_room_maintenance" model="ir.actions.server">
-        <field name="name">Clear Room Maintenance</field>
-        <field name="model_id" ref="model_hotel_room"/>
-        <field name="binding_model_id" ref="model_hotel_room"/>
-        <field name="binding_view_types">list,form</field>
-        <field name="state">code</field>
-        <field name="code"><![CDATA[
-    # Clear maintenance for selected rooms
-    records.write({
-        'is_unavailable_for_maintenance': False
-    })
+<record id="server_action_clear_room_maintenance" model="ir.actions.server">
+    <field name="name">Clear Room Maintenance</field>
+    <field name="model_id" ref="model_hotel_room"/>
+    <field name="binding_model_id" ref="model_hotel_room"/>
+    <field name="binding_view_types">list,form</field>
+    <field name="state">code</field>
+    <field name="code"><![CDATA[
+# Clear maintenance for selected rooms
+records.write({
+    'is_unavailable_for_maintenance': False
+})
 
-    # Show success message
-    action = {
-        'type': 'ir.actions.client',
-        'tag': 'display_notification',
-        'params': {
-            'type': 'success',
-            'message': '%d room(s) maintenance cleared successfully!' % len(records),
-            'next': {'type': 'ir.actions.act_window_close'},
-        }
+# Show success message
+action = {
+    'type': 'ir.actions.client',
+    'tag': 'display_notification',
+    'params': {
+        'type': 'success',
+        'message': '%d room(s) maintenance cleared successfully!' % len(records),
+        'next': {'type': 'ir.actions.act_window_close'},
     }
-    ]]></field>
-    </record>
+}
+]]></field>
+</record>
     <!--    Hotel Room menu action-->
     <record id="hotel_room_action" model="ir.actions.act_window">
         <field name="name">Rooms</field>
