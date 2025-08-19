@@ -82,8 +82,11 @@
         <field name="model_id" ref="model_hotel_room"/>
         <field name="binding_model_id" ref="model_hotel_room"/>
         <field name="binding_view_types">list,form</field>
-        <field name="state">object</field>
-        <field name="code">action_set_maintenance()</field>
+        <field name="state">code</field>
+        <field name="code"><![CDATA[
+    for record in records:
+        record.action_set_maintenance()
+    ]]></field>
     </record>
 
     <record id="server_action_clear_room_maintenance" model="ir.actions.server">
@@ -91,8 +94,11 @@
         <field name="model_id" ref="model_hotel_room"/>
         <field name="binding_model_id" ref="model_hotel_room"/>
         <field name="binding_view_types">list,form</field>
-        <field name="state">object</field>
-        <field name="code">action_clear_maintenance()</field>
+        <field name="state">code</field>
+        <field name="code"><![CDATA[
+    for record in records:
+        record.action_clear_maintenance()
+    ]]></field>
     </record>
 
     <!--    Hotel Room menu action-->
