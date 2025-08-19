@@ -106,7 +106,7 @@ class RoomBookingLine(models.Model):
             diffdate = self.checkout_date - self.checkin_date
             qty = diffdate.days
             if diffdate.total_seconds() > 0:
-                qty = qty + 1 
+                self.uom_qty = qty
 
     @api.depends('uom_qty', 'price_unit', 'tax_ids')
     def _compute_price_subtotal(self):
