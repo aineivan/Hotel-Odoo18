@@ -26,7 +26,7 @@
                             invisible="state != 'check_out'" type="object"/>
                     <button name="action_invoice" string="Create Invoice"
                             type="object" class="btn-primary"
-                            invisible="state not in ['draft','check_in', 'check_out'] or invoice_button_visible == True"/>
+                            invisible="state  in ['cancel','done'] or invoice_button_visible == True"/>
                     <button name="action_cancel" string="Cancel"
                             invisible="state not in ['draft','reserved']"
                             type="object" class="btn-secondary"/>
