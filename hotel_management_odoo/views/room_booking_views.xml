@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <!--     Room Booking Form View -->
+    <!-- Room Booking Form View -->
     <record id="room_booking_view_form" model="ir.ui.view">
         <field name="name">room.booking.view.form</field>
         <field name="model">room.booking</field>
@@ -54,8 +54,6 @@
                         <!-- Invisible Fields -->
                         <field name="is_checkin" invisible="1"/>
                         <field name="company_id" invisible="1"/>
-                        <field name="checkin_date" invisible="1"/>
-                        <field name="checkout_date" invisible="1"/>
                         <field name="duration" readonly="1" invisible="1"/>
                         <field name="duration_visible" invisible="1"/>
                         <field name="invoice_button_visible" invisible="1"/>
@@ -73,6 +71,9 @@
                         <group>
                             <field name="date_order"/>
                             <field name="pricelist_id"/>
+                            <!-- Make checkin/checkout dates visible and required -->
+                            <field name="checkin_date" required="1"/>
+                            <field name="checkout_date" required="1"/>
                             <field name="need_service"
                                    invisible=" state not in ['check_in']"/>
                             <field name="need_fleet"
@@ -87,15 +88,14 @@
                         <page name="folio" string="Folio">
                             <field name="room_line_ids" colspan="4"
                                    string="Room Lines"
-                                   context="{'default_checkin_date':checkin_date, 'default_checkout_date':checkout_date, 'default_uom_qty':duration}">
+                                   context="{'default_uom_qty':duration}">
                                 <list editable="bottom">
                                     <field name="room_id" string="Room"
                                            required="1"
                                            options="{'no_open': True, 'no_create': True}"/>
-                                    <field name="checkin_date"/>
+                                    <!-- Remove individual date fields since they come from booking -->
                                     <field name="booking_line_visible"
                                            invisible="1"/>
-                                    <field name="checkout_date"/>
                                     <field name="uom_qty" string="Duration"
                                            readonly="1" force_save="1"/>
                                     <field name="uom_id"
@@ -300,17 +300,17 @@
                             </group>
                             <div class="oe_clear"/>
                         </page>
-                        <page>
-                        <group string="Notes">
-                            <div class="oe_title">
-                                   <label for="customer_note" string="Customer Notes"/>
-                            </div>
-                            <field name="customer_note" placeholder="Notes visible to the customer..." nolabel="1"/>
-                            
-                            <div class="oe_title">
-                                   <label for="note" string="Internal Notes"/>
-                            </div>
-                            <field name="note" placeholder="Internal notes for staff only..." nolabel="1"/>
+                        <page name="notes" string="Notes">
+                            <group string="Notes">
+                                <div class="oe_title">
+                                    <label for="customer_note" string="Customer Notes"/>
+                                </div>
+                                <field name="customer_note" placeholder="Notes visible to the customer..." nolabel="1"/>
+                                
+                                <div class="oe_title">
+                                    <label for="note" string="Internal Notes"/>
+                                </div>
+                                <field name="note" placeholder="Internal notes for staff only..." nolabel="1"/>
                             </group>
                         </page>
                     </notebook>
@@ -318,7 +318,8 @@
             </form>
         </field>
     </record>
-    <!--     Room Booking Tree view -->
+    
+    <!-- Room Booking Tree view -->
     <record id="room_booking_view_tree" model="ir.ui.view">
         <field name="name">room.booking.view.tree</field>
         <field name="model">room.booking</field>
@@ -326,26 +327,30 @@
             <list>
                 <field name="name"/>
                 <field name="partner_id"/>
+                <field name="checkin_date"/>
+                <field name="checkout_date"/>
                 <field name="date_order"/>
                 <field name="state"/>
             </list>
         </field>
     </record>
+    
+    <!-- Updated Calendar View - using main checkin/checkout fields -->
     <record id="room_booking_view_calendar" model="ir.ui.view">
-       <field name="name">room.booking.view.calendar</field>
-       <field name="model">room.booking</field>
-       <field name="arch" type="xml">
-              <calendar string="Room Booking Calendar"
-                     date_start="booking_checkin_date"
-                     date_stop="booking_checkout_date"
+        <field name="name">room.booking.view.calendar</field>
+        <field name="model">room.booking</field>
+        <field name="arch" type="xml">
+            <calendar string="Room Booking Calendar"
+                     date_start="checkin_date"
+                     date_stop="checkout_date"
                      color="primary_room_id">
-              <field name="name"/>
-              <field name="partner_id"/>
-              <field name="state"/>
-              <field name="primary_room_id"/>
-              </calendar>
-       </field>
-       </record>
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="state"/>
+                <field name="primary_room_id"/>
+            </calendar>
+        </field>
+    </record>
 
     <!-- Update Action to include calendar -->
     <record id="room_booking_action" model="ir.actions.act_window">
@@ -359,7 +364,8 @@
             </p>
         </field>
     </record>
-    <!--     Reservation menu -->
+    
+    <!-- Reservation menu -->
     <menuitem id="room_booking_menu" name="Reservation" sequence="10"
               parent="hotel_management_menu_root"
               action="room_booking_action"/>
