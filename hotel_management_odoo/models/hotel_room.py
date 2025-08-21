@@ -17,8 +17,13 @@ class HotelRoom(models.Model):
     name = fields.Char(string='Room Number', help="Physical Room Number (e.g., 404)",
                        index='trigram', required=True, translate=True)
 
+    # MODIFIED: Physical room code now represents the actual physical room
     physical_room_code = fields.Char(string='Physical Room Code', required=True,
-                                     help="Unique identifier for the physical room (e.g., RM-404)")
+                                     help="Physical room identifier - same for all configurations of the same room (e.g., RM-707)")
+
+    # NEW: Room configuration identifier for unique room records
+    room_config_code = fields.Char(string='Room Configuration Code',
+                                   help="Unique identifier for this specific room configuration (e.g., RM-707-SGL)")
 
     status = fields.Selection([("available", "Available"),
                                ("reserved", "Reserved"),
@@ -115,13 +120,7 @@ class HotelRoom(models.Model):
                 room.status = 'unavailable'
                 room.is_room_avail = False
             else:
-                # Check if any room with same physical_room_code is booked
-                same_physical_rooms = self.search([
-                    ('physical_room_code', '=', room.physical_room_code),
-                    ('id', '!=', room.id)
-                ])
-
-                # Check for active bookings on the same physical room
+                # FIXED: Check if the physical room is booked (any configuration)
                 active_bookings = self.env['room.booking.line'].search([
                     ('room_id.physical_room_code', '=', room.physical_room_code),
                     ('booking_id.state', 'in', ['reserved', 'check_in']),
@@ -129,7 +128,11 @@ class HotelRoom(models.Model):
                 ])
 
                 if active_bookings:
-                    room.status = 'reserved'  # or 'occupied' based on booking state
+                    # Determine status based on booking state
+                    if any(booking.booking_id.state == 'check_in' for booking in active_bookings):
+                        room.status = 'occupied'
+                    else:
+                        room.status = 'reserved'
                     room.is_room_avail = False
                 else:
                     room.status = 'available'
@@ -137,8 +140,8 @@ class HotelRoom(models.Model):
 
     def check_room_availability(self, checkin_date, checkout_date, exclude_booking_id=None):
         """
-        Check if this room (and all rooms with same physical_room_code) is available 
-        for the given date range
+        FIXED: Check if this physical room is available for the given date range
+        This now properly checks the physical room, not just the configuration
         """
         domain = [
             ('room_id.physical_room_code', '=', self.physical_room_code),
@@ -155,7 +158,7 @@ class HotelRoom(models.Model):
 
     def action_set_maintenance(self):
         """Set room for maintenance - button action from form view"""
-        # Check if ANY room with same physical_room_code has active bookings
+        # Check if the physical room has active bookings
         active_bookings = self.env['room.booking.line'].search([
             ('room_id.physical_room_code', '=', self.physical_room_code),
             ('booking_id.state', 'in', ['reserved', 'check_in']),
@@ -166,17 +169,18 @@ class HotelRoom(models.Model):
             booking_details = []
             for booking in active_bookings:
                 booking_details.append(
-                    f"Booking {booking.booking_id.name} - Room {booking.room_id.name} "
+                    f"Booking {booking.booking_id.name} - Room {booking.room_id.display_name_full} "
                     f"(Check-out: {booking.checkout_date.strftime('%Y-%m-%d %H:%M')})"
                 )
 
             raise UserError(
                 _("Cannot set room '%s' for maintenance. "
                   "Active bookings found for physical room %s:\n%s") %
-                (self.name, self.physical_room_code, '\n'.join(booking_details))
+                (self.display_name_full, self.physical_room_code,
+                 '\n'.join(booking_details))
             )
 
-        # Set maintenance for ALL rooms with same physical_room_code
+        # Set maintenance for ALL room configurations of this physical room
         same_physical_rooms = self.search([
             ('physical_room_code', '=', self.physical_room_code)
         ])
@@ -194,7 +198,7 @@ class HotelRoom(models.Model):
 
     def action_clear_maintenance(self):
         """Clear room maintenance - button action from form view"""
-        # Clear maintenance for ALL rooms with same physical_room_code
+        # Clear maintenance for ALL room configurations of this physical room
         same_physical_rooms = self.search([
             ('physical_room_code', '=', self.physical_room_code)
         ])
@@ -212,30 +216,48 @@ class HotelRoom(models.Model):
 
     @api.model
     def create(self, vals):
-        """Override create to auto-generate physical_room_code"""
+        """Override create to auto-generate codes"""
         if not vals.get('physical_room_code') and vals.get('name'):
             vals['physical_room_code'] = self._generate_physical_room_code(
+                vals.get('name'))
+
+        if not vals.get('room_config_code') and vals.get('name'):
+            vals['room_config_code'] = self._generate_room_config_code(
                 vals.get('name'),
                 vals.get('room_type')
             )
         return super().create(vals)
 
-
     def write(self, vals):
-        """Override write to update physical_room_code when needed"""
-        if ('name' in vals or 'room_type' in vals) and 'physical_room_code' not in vals:
+        """Override write to update codes when needed"""
+        if ('name' in vals or 'room_type' in vals):
             for room in self:
                 new_name = vals.get('name', room.name)
                 new_room_type_id = vals.get(
                     'room_type', room.room_type.id if room.room_type else False)
-                vals['physical_room_code'] = self._generate_physical_room_code(
-                    new_name,
-                    new_room_type_id
-                )
+
+                if 'physical_room_code' not in vals:
+                    vals['physical_room_code'] = self._generate_physical_room_code(
+                        new_name)
+
+                if 'room_config_code' not in vals:
+                    vals['room_config_code'] = self._generate_room_config_code(
+                        new_name, new_room_type_id)
+
         return super().write(vals)
 
-    def _generate_physical_room_code(self, room_name, room_type_id):
-        """Generate unique physical room code - MODIFIED to include room type"""
+    def _generate_physical_room_code(self, room_name):
+        """
+        FIXED: Generate physical room code - same for all configurations of the same room
+        """
+        physical_code = f"RM-{room_name}"
+
+        # For physical rooms, we want the same room number to have the same code
+        # regardless of configuration, so no uniqueness counter needed here
+        return physical_code
+
+    def _generate_room_config_code(self, room_name, room_type_id):
+        """Generate unique room configuration code for database uniqueness"""
         base_code = f"RM-{room_name}"
 
         if room_type_id:
@@ -251,32 +273,32 @@ class HotelRoom(models.Model):
                 else:
                     suffix = f"-{room_type_name[:3]}"
 
-                # MODIFIED: Make this the base code instead of just suffix
-                physical_code = f"{base_code}{suffix}"
+                config_code = f"{base_code}{suffix}"
             else:
-                physical_code = base_code
+                config_code = base_code
         else:
-            physical_code = base_code
+            config_code = base_code
 
-        # Ensure uniqueness
+        # Ensure uniqueness for room configurations
         counter = 1
-        original_code = physical_code
+        original_code = config_code
         while self.env['hotel.room'].search([
-            ('physical_room_code', '=', physical_code),
+            ('room_config_code', '=', config_code),
             ('id', '!=', self.id if hasattr(self, 'id') else False)
         ]):
-            physical_code = f"{original_code}-{counter:02d}"
+            config_code = f"{original_code}-{counter:02d}"
             counter += 1
 
-        return physical_code
+        return config_code
 
     def copy(self, default=None):
-        """Override copy to ensure unique physical_room_code when duplicating"""
+        """Override copy to ensure unique codes when duplicating"""
         if default is None:
             default = {}
 
         if 'physical_room_code' not in default:
-            # This will trigger auto-generation
             default['physical_room_code'] = False
+        if 'room_config_code' not in default:
+            default['room_config_code'] = False
 
         return super().copy(default)

@@ -144,9 +144,12 @@ class RoomBookingLine(models.Model):
             },
         )
 
+    # Key changes to room.booking.line model - just the modified methods
+
+
     @api.onchange('room_id')
     def _onchange_room_id(self):
-        """When room changes, validate availability"""
+        """When room changes, validate availability - FIXED for physical room logic"""
         if self.room_id and self.booking_id.checkin_date and self.booking_id.checkout_date:
             # Check if this physical room is available for the booking dates
             if not self.room_id.check_room_availability(
@@ -157,7 +160,7 @@ class RoomBookingLine(models.Model):
                 # Find conflicting bookings for better error message
                 conflicting_bookings = self.env['room.booking.line'].search([
                     ('room_id.physical_room_code', '=',
-                     self.room_id.physical_room_code),
+                    self.room_id.physical_room_code),
                     ('booking_id.state', 'in', ['reserved', 'check_in']),
                     ('checkin_date', '<', self.booking_id.checkout_date),
                     ('checkout_date', '>', self.booking_id.checkin_date),
@@ -167,20 +170,21 @@ class RoomBookingLine(models.Model):
                 conflict_details = []
                 for booking in conflicting_bookings:
                     conflict_details.append(
-                        f"Booking {booking.booking_id.name} "
+                        f"Booking {booking.booking_id.name} - {booking.room_id.display_name_full} "
                         f"({booking.checkin_date.strftime('%Y-%m-%d')} to "
                         f"{booking.checkout_date.strftime('%Y-%m-%d')})"
                     )
 
                 raise ValidationError(
                     _("Physical room '%s' is not available for the selected dates "
-                      "(%s to %s).\n\nConflicting bookings:\n%s\n\n"
-                      "Please choose different dates or another room.") % (
+                    "(%s to %s).\n\nConflicting bookings:\n%s\n\n"
+                    "Please choose different dates or another room.") % (
                         self.room_id.physical_room_code,
                         self.booking_id.checkin_date.strftime('%Y-%m-%d'),
                         self.booking_id.checkout_date.strftime('%Y-%m-%d'),
                         '\n'.join(conflict_details)
                     ))
+
 
     @api.model
     def create(self, vals):
@@ -196,11 +200,12 @@ class RoomBookingLine(models.Model):
             ):
                 raise ValidationError(
                     _("Physical room '%s' is not available for the selected dates. "
-                      "Please choose different dates or another room.")
+                    "Please choose different dates or another room.")
                     % line.room_id.physical_room_code
                 )
 
         return line
+
 
     def write(self, vals):
         """Override write to validate room availability when room changes"""
@@ -217,7 +222,7 @@ class RoomBookingLine(models.Model):
                     ):
                         raise ValidationError(
                             _("Physical room '%s' is not available for the selected dates. "
-                              "Please choose different dates or another room.")
+                            "Please choose different dates or another room.")
                             % new_room.physical_room_code
                         )
 
