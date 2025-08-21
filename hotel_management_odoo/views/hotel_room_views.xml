@@ -50,6 +50,7 @@
                                     <field name="taxes_ids"
                                            widget="many2many_tags"
                                            string="Customer Taxes"/>
+                                           <field name="physical_room_code"></field>
                                 </group>
                                 <group>
                                     <field name="room_type"/>

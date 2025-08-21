@@ -17,7 +17,6 @@ class HotelRoom(models.Model):
     name = fields.Char(string='Room Number', help="Physical Room Number (e.g., 404)",
                        index='trigram', required=True, translate=True)
 
-    # NEW: Physical room identifier - this is the key field
     physical_room_code = fields.Char(string='Physical Room Code', required=True,
                                      help="Unique identifier for the physical room (e.g., RM-404)")
 
@@ -210,3 +209,72 @@ class HotelRoom(models.Model):
                 'next': {'type': 'ir.actions.act_window_close'},
             }
         }
+
+    @api.model
+    def create(self, vals):
+        """Override create to auto-generate physical_room_code"""
+        if not vals.get('physical_room_code') and vals.get('name'):
+            vals['physical_room_code'] = self._generate_physical_room_code(
+                vals.get('name'),
+                vals.get('room_type')
+            )
+        return super().create(vals)
+
+
+    def write(self, vals):
+        """Override write to update physical_room_code when needed"""
+        if ('name' in vals or 'room_type' in vals) and 'physical_room_code' not in vals:
+            for room in self:
+                new_name = vals.get('name', room.name)
+                new_room_type_id = vals.get(
+                    'room_type', room.room_type.id if room.room_type else False)
+                vals['physical_room_code'] = self._generate_physical_room_code(
+                    new_name,
+                    new_room_type_id
+                )
+        return super().write(vals)
+
+
+    def _generate_physical_room_code(self, room_name, room_type_id):
+        """Generate unique physical room code"""
+        base_code = f"RM-{room_name}"
+
+        if room_type_id:
+            room_type = self.env['hotel.room.type'].browse(room_type_id)
+            if room_type.exists():
+                room_type_name = room_type.name.upper()
+                if 'SINGLE' in room_type_name:
+                    suffix = "-SGL"
+                elif 'DOUBLE' in room_type_name:
+                    suffix = "-DBL"
+                elif 'SUITE' in room_type_name:
+                    suffix = "-STE"
+                else:
+                    suffix = f"-{room_type_name[:3]}"
+
+                physical_code = f"{base_code}{suffix}"
+            else:
+                physical_code = base_code
+        else:
+            physical_code = base_code
+
+        # Ensure uniqueness
+        counter = 1
+        original_code = physical_code
+        while self.env['hotel.room'].search([('physical_room_code', '=', physical_code), ('id', '!=', self.id if hasattr(self, 'id') else False)]):
+            physical_code = f"{original_code}-{counter:02d}"
+            counter += 1
+
+        return physical_code
+
+
+    def copy(self, default=None):
+        """Override copy to ensure unique physical_room_code when duplicating"""
+        if default is None:
+            default = {}
+
+        if 'physical_room_code' not in default:
+            # This will trigger auto-generation
+            default['physical_room_code'] = False
+
+        return super().copy(default)
