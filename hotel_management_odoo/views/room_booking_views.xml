@@ -300,6 +300,19 @@
                             </group>
                             <div class="oe_clear"/>
                         </page>
+                        <page>
+                        <group string="Notes">
+                            <div class="oe_title">
+                                   <label for="customer_note" string="Customer Notes"/>
+                            </div>
+                            <field name="customer_note" placeholder="Notes visible to the customer..." nolabel="1"/>
+                            
+                            <div class="oe_title">
+                                   <label for="note" string="Internal Notes"/>
+                            </div>
+                            <field name="note" placeholder="Internal notes for staff only..." nolabel="1"/>
+                            </group>
+                        </page>
                     </notebook>
                 </sheet>
             </form>

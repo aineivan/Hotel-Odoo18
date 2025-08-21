@@ -231,21 +231,41 @@ class RoomBooking(models.Model):
                                          compute='_compute_amount_untaxed',
                                          help="This is the Total Amount for "
                                               "Fleet", tracking=5)
+    note = fields.Text(string='Internal Notes',
+                       help="Internal notes for this booking")
+    customer_note = fields.Text(
+        string='Customer Notes', help="Notes visible to the customer")
+
+
+    def _validate_room_availability(self):
+        """Validate that all selected rooms are available for the dates"""
+        for room_line in self.room_line_ids:
+            if not room_line.room_id._check_availability(
+                self.checkin_date, self.checkout_date
+            ):
+                raise ValidationError(
+                    _("Room %s is not available for the selected dates") %
+                    room_line.room_id.name
+                )
+
+    def action_reserve(self):
+        """Enhanced reserve with availability validation"""
+        self._validate_room_availability()
     
-    booking_checkin_date = fields.Datetime(
-        string="Booking Check In",
-        compute='_compute_booking_dates',
-        store=True,
-        help="Earliest check-in date across all rooms"
-    )
+    # booking_checkin_date = fields.Datetime(
+    #     string="Booking Check In",
+    #     compute='_compute_booking_dates',
+    #     store=True,
+    #     help="Earliest check-in date across all rooms"
+    # )
 
 
-    booking_checkout_date = fields.Datetime(
-        string="Booking Check Out",
-        compute='_compute_booking_dates',
-        store=True,
-        help="Latest check-out date across all rooms"
-    )
+    # booking_checkout_date = fields.Datetime(
+    #     string="Booking Check Out",
+    #     compute='_compute_booking_dates',
+    #     store=True,
+    #     help="Latest check-out date across all rooms"
+    # )
 
     primary_room_id = fields.Many2one(
         'hotel.room',
@@ -267,17 +287,26 @@ class RoomBooking(models.Model):
                     })
         return super().unlink()
     
-    @api.depends('room_line_ids.checkin_date', 'room_line_ids.checkout_date')
-    def _compute_booking_dates(self):
+    # @api.depends('room_line_ids.checkin_date', 'room_line_ids.checkout_date')
+    # def _compute_booking_dates(self):
+    #     for booking in self:
+    #         if booking.room_line_ids:
+    #             booking.booking_checkin_date = min(
+    #                 booking.room_line_ids.mapped('checkin_date'))
+    #             booking.booking_checkout_date = max(
+    #                 booking.room_line_ids.mapped('checkout_date'))
+    #         else:
+    #             booking.booking_checkin_date = False
+    #             booking.booking_checkout_date = False
+    @api.constrains('checkin_date', 'checkout_date')
+    def _check_dates(self):
+        """Validate that checkout is after checkin"""
         for booking in self:
-            if booking.room_line_ids:
-                booking.booking_checkin_date = min(
-                    booking.room_line_ids.mapped('checkin_date'))
-                booking.booking_checkout_date = max(
-                    booking.room_line_ids.mapped('checkout_date'))
-            else:
-                booking.booking_checkin_date = False
-                booking.booking_checkout_date = False
+            if booking.checkin_date and booking.checkout_date:
+                if booking.checkout_date <= booking.checkin_date:
+                    raise ValidationError(
+                        _("Checkout date must be after checkin date"))
+
 
 
     @api.depends('room_line_ids.room_id')

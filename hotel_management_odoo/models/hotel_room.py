@@ -117,6 +117,44 @@ class HotelRoom(models.Model):
                 room.status = 'available'
                 room.is_room_avail = True
 
+    def _check_availability(self, checkin_date, checkout_date):
+        """Check if room is available for given dates considering room types"""
+        # Check if room is unavailable for maintenance
+        if self.is_unavailable_for_maintenance:
+            return False
+
+        # Check for overlapping bookings for this specific room
+        overlapping_bookings = self.env['room.booking.line'].search([
+            ('room_id', '=', self.id),
+            ('booking_id.state', 'in', ['reserved', 'check_in']),
+            ('checkin_date', '<', checkout_date),
+            ('checkout_date', '>', checkin_date)
+        ])
+
+        if overlapping_bookings:
+            return False
+
+        # Check for overlapping bookings for the same room number but different types
+        # This prevents room 404 from being booked as different types simultaneously
+        same_number_rooms = self.env['hotel.room'].search([
+            ('name', '=', self.name),  # Same room number
+            ('id', '!=', self.id),     # Different room record
+            ('room_type', '!=', self.room_type)  # Different room type
+        ])
+
+        for same_room in same_number_rooms:
+            overlapping_same_number = self.env['room.booking.line'].search([
+                ('room_id', '=', same_room.id),
+                ('booking_id.state', 'in', ['reserved', 'check_in']),
+                ('checkin_date', '<', checkout_date),
+                ('checkout_date', '>', checkin_date)
+            ])
+
+            if overlapping_same_number:
+                return False
+
+        return True
+
     def action_set_maintenance(self):
         """Set room for maintenance - button action from form view"""
         # Check if room has active bookings

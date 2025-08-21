@@ -36,14 +36,19 @@ class RoomBookingLine(models.Model):
     booking_id = fields.Many2one("room.booking", string="Booking",
                                  help="Indicates the Room",
                                  ondelete="cascade")
-    checkin_date = fields.Datetime(string="Check In",
-                                   help="You can choose the date,"
-                                        " Otherwise sets to current Date",
-                                   required=True)
-    checkout_date = fields.Datetime(string="Check Out",
-                                    help="You can choose the date,"
-                                         " Otherwise sets to current Date",
-                                    required=True)
+    # checkin_date = fields.Datetime(string="Check In",
+    #                                help="You can choose the date,"
+    #                                     " Otherwise sets to current Date",
+    #                                required=True)
+    # checkout_date = fields.Datetime(string="Check Out",
+    #                                 help="You can choose the date,"
+    #                                      " Otherwise sets to current Date",
+    #                                 required=True)
+    checkin_date = fields.Datetime(
+        related='booking_id.checkin_date', string="Check In", store=True)
+    checkout_date = fields.Datetime(
+        related='booking_id.checkout_date', string="Check Out", store=True)
+
     room_id = fields.Many2one('hotel.room', string="Room",
                               help="Indicates the Room",
                               required=True,
@@ -89,24 +94,43 @@ class RoomBookingLine(models.Model):
                                           string="Booking Line Visible",
                                           help="If True, then Booking Line "
                                                "will be visible")
+    
+    @api.onchange('booking_id.checkin_date', 'booking_id.checkout_date')
+    def _onchange_booking_dates(self):
+        """Update room domain based on selected dates"""
+        domain = [('status', '=', 'available')]
 
-    @api.onchange("checkin_date", "checkout_date")
-    def _onchange_checkin_date(self):
-        """When you change checkin_date or checkout_date it will check
-        and update the qty of hotel service line"""
-        # Add validation to ensure both dates exist before comparing
-        if not self.checkin_date or not self.checkout_date:
-            return
+        if self.booking_id.checkin_date and self.booking_id.checkout_date:
+            # We'll dynamically filter available rooms in the view
+            # The actual availability check happens in room validation
+            pass
 
-        if self.checkout_date < self.checkin_date:
-            raise ValidationError(
-                _("Checkout must be greater or equal checkin date"))
+        return {'domain': {'room_id': domain}}
+    
+    @api.onchange('room_id')
+    def _onchange_room_id(self):
+        """Update duration based on booking dates"""
+        if self.booking_id.checkin_date and self.booking_id.checkout_date:
+            diffdate = self.booking_id.checkout_date - self.booking_id.checkin_date
+            self.uom_qty = diffdate.days
 
-        if self.checkin_date and self.checkout_date:
-            diffdate = self.checkout_date - self.checkin_date
-            qty = diffdate.days
-            if diffdate.total_seconds() > 0:
-                self.uom_qty = qty
+    # @api.onchange("checkin_date", "checkout_date")
+    # def _onchange_checkin_date(self):
+    #     """When you change checkin_date or checkout_date it will check
+    #     and update the qty of hotel service line"""
+    #     # Add validation to ensure both dates exist before comparing
+    #     if not self.checkin_date or not self.checkout_date:
+    #         return
+
+    #     if self.checkout_date < self.checkin_date:
+    #         raise ValidationError(
+    #             _("Checkout must be greater or equal checkin date"))
+
+    #     if self.checkin_date and self.checkout_date:
+    #         diffdate = self.checkout_date - self.checkin_date
+    #         qty = diffdate.days
+    #         if diffdate.total_seconds() > 0:
+    #             self.uom_qty = qty
 
     @api.depends('uom_qty', 'price_unit', 'tax_ids')
     def _compute_price_subtotal(self):
@@ -156,28 +180,28 @@ class RoomBookingLine(models.Model):
             },
         )
 
-    @api.onchange('checkin_date', 'checkout_date', 'room_id')
-    def onchange_checkin_date(self):
-        """Validate room availability for the given dates"""
-        # Early return if any required field is missing
-        if not (self.checkin_date and self.checkout_date and self.room_id):
-            return
+    # @api.onchange('checkin_date', 'checkout_date', 'room_id')
+    # def onchange_checkin_date(self):
+    #     """Validate room availability for the given dates"""
+    #     # Early return if any required field is missing
+    #     if not (self.checkin_date and self.checkout_date and self.room_id):
+    #         return
 
-        # Search for existing bookings for the same room
-        existing_bookings = self.env['room.booking.line'].search([
-            ('room_id', '=', self.room_id.id),
-            ('booking_id.state', 'in', ['reserved', 'check_in']),
-            ('id', '!=', self.id if self.id else 0)
-        ])
+    #     # Search for existing bookings for the same room
+    #     existing_bookings = self.env['room.booking.line'].search([
+    #         ('room_id', '=', self.room_id.id),
+    #         ('booking_id.state', 'in', ['reserved', 'check_in']),
+    #         ('id', '!=', self.id if self.id else 0)
+    #     ])
 
-        for existing_line in existing_bookings:
-            # Check if dates overlap
-            if (self.checkin_date < existing_line.checkout_date and
-                    self.checkout_date > existing_line.checkin_date):
-                raise ValidationError(
-                    _("Room '%s' is already booked from %s to %s. "
-                    "Please choose different dates or another room.") % (
-                        self.room_id.name,
-                        existing_line.checkin_date.strftime('%Y-%m-%d %H:%M'),
-                        existing_line.checkout_date.strftime('%Y-%m-%d %H:%M')
-                    ))
+    #     for existing_line in existing_bookings:
+    #         # Check if dates overlap
+    #         if (self.checkin_date < existing_line.checkout_date and
+    #                 self.checkout_date > existing_line.checkin_date):
+    #             raise ValidationError(
+    #                 _("Room '%s' is already booked from %s to %s. "
+    #                 "Please choose different dates or another room.") % (
+    #                     self.room_id.name,
+    #                     existing_line.checkin_date.strftime('%Y-%m-%d %H:%M'),
+    #                     existing_line.checkout_date.strftime('%Y-%m-%d %H:%M')
+    #                 ))
