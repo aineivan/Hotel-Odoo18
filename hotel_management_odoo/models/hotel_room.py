@@ -234,9 +234,8 @@ class HotelRoom(models.Model):
                 )
         return super().write(vals)
 
-
     def _generate_physical_room_code(self, room_name, room_type_id):
-        """Generate unique physical room code"""
+        """Generate unique physical room code - MODIFIED to include room type"""
         base_code = f"RM-{room_name}"
 
         if room_type_id:
@@ -252,6 +251,7 @@ class HotelRoom(models.Model):
                 else:
                     suffix = f"-{room_type_name[:3]}"
 
+                # MODIFIED: Make this the base code instead of just suffix
                 physical_code = f"{base_code}{suffix}"
             else:
                 physical_code = base_code
@@ -261,12 +261,14 @@ class HotelRoom(models.Model):
         # Ensure uniqueness
         counter = 1
         original_code = physical_code
-        while self.env['hotel.room'].search([('physical_room_code', '=', physical_code), ('id', '!=', self.id if hasattr(self, 'id') else False)]):
+        while self.env['hotel.room'].search([
+            ('physical_room_code', '=', physical_code),
+            ('id', '!=', self.id if hasattr(self, 'id') else False)
+        ]):
             physical_code = f"{original_code}-{counter:02d}"
             counter += 1
 
         return physical_code
-
 
     def copy(self, default=None):
         """Override copy to ensure unique physical_room_code when duplicating"""
