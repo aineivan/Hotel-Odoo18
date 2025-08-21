@@ -1,24 +1,4 @@
 # -*- coding: utf-8 -*-
-###############################################################################
-#
-#    Cybrosys Technologies Pvt. Ltd.
-#
-#    Copyright (C) 2024-TODAY Cybrosys Technologies(<https://www.cybrosys.com>)
-#    Author: ADARSH K (odoo@cybrosys.com)
-#
-#    You can modify it under the terms of the GNU LESSER
-#    GENERAL PUBLIC LICENSE (LGPL v3), Version 3.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU LESSER GENERAL PUBLIC LICENSE (LGPL v3) for more details.
-#
-#    You should have received a copy of the GNU LESSER GENERAL PUBLIC LICENSE
-#    (LGPL v3) along with this program.
-#    If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
 from odoo import api, fields, models, tools, _
 from odoo.exceptions import ValidationError, UserError
 
@@ -34,20 +14,25 @@ class HotelRoom(models.Model):
         """Method for getting the default uom id"""
         return self.env.ref('uom.product_uom_unit')
 
-    name = fields.Char(string='Name', help="Name of the Room", index='trigram',
-                       required=True, translate=True)
+    name = fields.Char(string='Room Number', help="Physical Room Number (e.g., 404)",
+                       index='trigram', required=True, translate=True)
+
+    # NEW: Physical room identifier - this is the key field
+    physical_room_code = fields.Char(string='Physical Room Code', required=True,
+                                     help="Unique identifier for the physical room (e.g., RM-404)")
+
     status = fields.Selection([("available", "Available"),
                                ("reserved", "Reserved"),
                                ("occupied", "Occupied"),
                                ("unavailable", "Unavailable")],
-                               compute='_compute_status',
-                               store=True,
-                              default="available", 
+                              compute='_compute_status',
+                              store=True,
+                              default="available",
                               string="Status",
                               help="Status of The Room",
                               tracking=True)
-    is_unavailable_for_maintenance = fields.Boolean(string="Unavailable for Maintenance", 
-                                                    tracking=True, 
+    is_unavailable_for_maintenance = fields.Boolean(string="Unavailable for Maintenance",
+                                                    tracking=True,
                                                     help="Check this box to make the room unavailable for maintenance.")
     is_room_avail = fields.Boolean(default=True, string="Available",
                                    help="Check if the room is available")
@@ -55,18 +40,16 @@ class HotelRoom(models.Model):
                               help="The rent of the room.")
     uom_id = fields.Many2one('uom.uom', string='Unit of Measure',
                              default=_get_default_uom_id, required=True,
-                             help="Default unit of measure used for all stock"
-                                  " operations.")
+                             help="Default unit of measure used for all stock operations.")
     room_image = fields.Image(string="Room Image", max_width=1920,
                               max_height=1920, help='Image of the room')
     taxes_ids = fields.Many2many('account.tax',
                                  'hotel_room_taxes_rel',
                                  'room_id', 'tax_id',
-                                 help="Default taxes used when selling the"
-                                      " room.", string='Customer Taxes',
+                                 help="Default taxes used when selling the room.",
+                                 string='Customer Taxes',
                                  domain=[('type_tax_use', '=', 'sale')],
-                                 default=lambda self: self.env.company.
-                                 account_sale_tax_id)
+                                 default=lambda self: self.env.company.account_sale_tax_id)
     room_amenities_ids = fields.Many2many("hotel.amenity",
                                           string="Room Amenities",
                                           help="List of room amenities.")
@@ -78,17 +61,39 @@ class HotelRoom(models.Model):
                               help="Automatically selects the manager",
                               tracking=True)
     room_type = fields.Many2one('hotel.room.type', string='Room Type',
-                                 required=True,
-                                 help="Select the type of the room.",
-                                 tracking=True,
-                                 #ondelete='restrict'
-                                 )
+                                required=True,
+                                help="Select the type of the room.",
+                                tracking=True)
     num_person = fields.Integer(string='Number Of Persons',
                                 required=True,
                                 help="Automatically chooses the No. of Persons",
                                 tracking=True)
     description = fields.Html(string='Description', help="Add description",
                               translate=True)
+
+    # NEW: Computed field to show full room name
+    display_name_full = fields.Char(
+        string='Full Name', compute='_compute_display_name_full', store=True)
+
+    @api.depends('name', 'room_type.name')
+    def _compute_display_name_full(self):
+        """Compute full display name including room type"""
+        for room in self:
+            if room.room_type:
+                room.display_name_full = f"{room.name} ({room.room_type.name})"
+            else:
+                room.display_name_full = room.name
+
+    def name_get(self):
+        """Override name_get to show room number with type"""
+        result = []
+        for room in self:
+            if room.room_type:
+                name = f"{room.name} ({room.room_type.name})"
+            else:
+                name = room.name
+            result.append((room.id, name))
+        return result
 
     @api.constrains("num_person")
     def _check_capacity(self):
@@ -111,55 +116,49 @@ class HotelRoom(models.Model):
                 room.status = 'unavailable'
                 room.is_room_avail = False
             else:
-                # This doesn't account for 'reserved' or 'occupied' states.
-                # A more robust solution would check bookings.
-                # For now, we'll just set it to available.
-                room.status = 'available'
-                room.is_room_avail = True
+                # Check if any room with same physical_room_code is booked
+                same_physical_rooms = self.search([
+                    ('physical_room_code', '=', room.physical_room_code),
+                    ('id', '!=', room.id)
+                ])
 
-    def _check_availability(self, checkin_date, checkout_date):
-        """Check if room is available for given dates considering room types"""
-        # Check if room is unavailable for maintenance
-        if self.is_unavailable_for_maintenance:
-            return False
+                # Check for active bookings on the same physical room
+                active_bookings = self.env['room.booking.line'].search([
+                    ('room_id.physical_room_code', '=', room.physical_room_code),
+                    ('booking_id.state', 'in', ['reserved', 'check_in']),
+                    ('checkout_date', '>', fields.Datetime.now())
+                ])
 
-        # Check for overlapping bookings for this specific room
-        overlapping_bookings = self.env['room.booking.line'].search([
-            ('room_id', '=', self.id),
+                if active_bookings:
+                    room.status = 'reserved'  # or 'occupied' based on booking state
+                    room.is_room_avail = False
+                else:
+                    room.status = 'available'
+                    room.is_room_avail = True
+
+    def check_room_availability(self, checkin_date, checkout_date, exclude_booking_id=None):
+        """
+        Check if this room (and all rooms with same physical_room_code) is available 
+        for the given date range
+        """
+        domain = [
+            ('room_id.physical_room_code', '=', self.physical_room_code),
             ('booking_id.state', 'in', ['reserved', 'check_in']),
             ('checkin_date', '<', checkout_date),
             ('checkout_date', '>', checkin_date)
-        ])
+        ]
 
-        if overlapping_bookings:
-            return False
+        if exclude_booking_id:
+            domain.append(('booking_id', '!=', exclude_booking_id))
 
-        # Check for overlapping bookings for the same room number but different types
-        # This prevents room 404 from being booked as different types simultaneously
-        same_number_rooms = self.env['hotel.room'].search([
-            ('name', '=', self.name),  # Same room number
-            ('id', '!=', self.id),     # Different room record
-            ('room_type', '!=', self.room_type)  # Different room type
-        ])
-
-        for same_room in same_number_rooms:
-            overlapping_same_number = self.env['room.booking.line'].search([
-                ('room_id', '=', same_room.id),
-                ('booking_id.state', 'in', ['reserved', 'check_in']),
-                ('checkin_date', '<', checkout_date),
-                ('checkout_date', '>', checkin_date)
-            ])
-
-            if overlapping_same_number:
-                return False
-
-        return True
+        conflicting_bookings = self.env['room.booking.line'].search(domain)
+        return len(conflicting_bookings) == 0
 
     def action_set_maintenance(self):
         """Set room for maintenance - button action from form view"""
-        # Check if room has active bookings
+        # Check if ANY room with same physical_room_code has active bookings
         active_bookings = self.env['room.booking.line'].search([
-            ('room_id', '=', self.id),
+            ('room_id.physical_room_code', '=', self.physical_room_code),
             ('booking_id.state', 'in', ['reserved', 'check_in']),
             ('checkout_date', '>', fields.Datetime.now())
         ])
@@ -168,38 +167,46 @@ class HotelRoom(models.Model):
             booking_details = []
             for booking in active_bookings:
                 booking_details.append(
-                    f"Booking {booking.booking_id.name} "
+                    f"Booking {booking.booking_id.name} - Room {booking.room_id.name} "
                     f"(Check-out: {booking.checkout_date.strftime('%Y-%m-%d %H:%M')})"
                 )
 
             raise UserError(
                 _("Cannot set room '%s' for maintenance. "
-                  "Active bookings found:\n%s") %
-                (self.name, '\n'.join(booking_details))
+                  "Active bookings found for physical room %s:\n%s") %
+                (self.name, self.physical_room_code, '\n'.join(booking_details))
             )
 
-        self.write({'is_unavailable_for_maintenance': True})
+        # Set maintenance for ALL rooms with same physical_room_code
+        same_physical_rooms = self.search([
+            ('physical_room_code', '=', self.physical_room_code)
+        ])
+        same_physical_rooms.write({'is_unavailable_for_maintenance': True})
 
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'type': 'success',
-                'message': f"Room '{self.name}' set for maintenance successfully!",
+                'message': f"Physical room '{self.physical_room_code}' set for maintenance successfully!",
                 'next': {'type': 'ir.actions.act_window_close'},
             }
         }
 
     def action_clear_maintenance(self):
         """Clear room maintenance - button action from form view"""
-        self.write({'is_unavailable_for_maintenance': False})
+        # Clear maintenance for ALL rooms with same physical_room_code
+        same_physical_rooms = self.search([
+            ('physical_room_code', '=', self.physical_room_code)
+        ])
+        same_physical_rooms.write({'is_unavailable_for_maintenance': False})
 
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
             'params': {
                 'type': 'success',
-                'message': f"Room '{self.name}' maintenance cleared successfully!",
+                'message': f"Physical room '{self.physical_room_code}' maintenance cleared successfully!",
                 'next': {'type': 'ir.actions.act_window_close'},
             }
         }

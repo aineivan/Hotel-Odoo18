@@ -32,6 +32,12 @@ class RoomBooking(models.Model):
     _description = "Hotel Room Reservation"
     _inherit = ['mail.thread', 'mail.activity.mixin']
 
+    note = fields.Text(string='Internal Notes',
+                       help="Internal notes for this booking")
+    customer_note = fields.Text(
+        string='Customer Notes', help="Notes visible to the customer")
+
+
     name = fields.Char(string="Folio Number", readonly=True, index=True, copy=False,
                        default="New", help="Name of Folio")
     company_id = fields.Many2one('res.company', string="Company",
@@ -49,20 +55,31 @@ class RoomBooking(models.Model):
                                  help="Creation date of draft/sent orders,"
                                       " Confirmation date of confirmed orders",
                                  default=fields.Datetime.now)
+
+    # MOVED FROM ROOM LINE: Booking-level checkin/checkout dates
+    checkin_date = fields.Datetime(string="Check In",
+                                   help="Date of Checkin",
+                                   required=True,
+                                   tracking=True)
+    checkout_date = fields.Datetime(string="Check Out",
+                                    help="Date of Checkout",
+                                    required=True,
+                                    tracking=True)
+
+    # NEW: Duration calculation
+    duration = fields.Float(string="Duration (Days)",
+                            compute='_compute_duration',
+                            store=True,
+                            help="Number of days calculated from check-in and check-out dates")
+
     is_checkin = fields.Boolean(default=False, string="Is Checkin",
                                 help="sets to True if the room is occupied")
     maintenance_request_sent = fields.Boolean(default=False,
-                                              string="Maintenance Request sent"
-                                                     "or Not",
+                                              string="Maintenance Request sent",
                                               help="sets to True if the "
                                                    "maintenance request send "
                                                    "once")
-    checkin_date = fields.Datetime(string="Check In",
-                                   help="Date of Checkin",
-                                   )
-    checkout_date = fields.Datetime(string="Check Out",
-                                    help="Date of Checkout",
-                                    )
+
     hotel_policy = fields.Selection([("prepaid", "On Booking"),
                                      ("manual", "On Check In"),
                                      ("picking", "On Checkout"),
@@ -72,10 +89,9 @@ class RoomBooking(models.Model):
                                          "either the guest has to pay at "
                                          "booking time, check-in "
                                          "or check-out time.", tracking=True)
-    duration = fields.Integer(string="Duration in Days",
-                              help="Number of days which will automatically "
-                                   "count from the check-in and check-out "
-                                   "date.", )
+
+    # REMOVED: duration field (replaced with computed duration above)
+
     invoice_button_visible = fields.Boolean(string='Invoice Button Display', copy=False,
                                             help="Invoice button will be "
                                                  "visible if this button is "
@@ -85,7 +101,7 @@ class RoomBooking(models.Model):
                    ('to_invoice', 'To Invoice'),
                    ('invoiced', 'Invoiced'),
                    ], string="Invoice Status",
-        help="Status of the Invoice",copy=False,
+        help="Status of the Invoice", copy=False,
         default='no_invoice', tracking=True)
     hotel_invoice_id = fields.Many2one("account.move",
                                        string="Invoice",
@@ -136,7 +152,7 @@ class RoomBooking(models.Model):
                                         ('cancel', 'Cancelled'),
                                         ('done', 'Done')], string='State',
                              help="State of the Booking",
-                             default='draft', tracking=True,copy=False,)
+                             default='draft', tracking=True, copy=False,)
     user_id = fields.Many2one(comodel_name='res.partner',
                               string="Invoice Address",
                               compute='_compute_user_id',
@@ -231,41 +247,20 @@ class RoomBooking(models.Model):
                                          compute='_compute_amount_untaxed',
                                          help="This is the Total Amount for "
                                               "Fleet", tracking=5)
-    note = fields.Text(string='Internal Notes',
-                       help="Internal notes for this booking")
-    customer_note = fields.Text(
-        string='Customer Notes', help="Notes visible to the customer")
 
+    booking_checkin_date = fields.Datetime(
+        string="Booking Check In",
+        compute='_compute_booking_dates',
+        store=True,
+        help="Earliest check-in date across all rooms"
+    )
 
-    def _validate_room_availability(self):
-        """Validate that all selected rooms are available for the dates"""
-        for room_line in self.room_line_ids:
-            if not room_line.room_id._check_availability(
-                self.checkin_date, self.checkout_date
-            ):
-                raise ValidationError(
-                    _("Room %s is not available for the selected dates") %
-                    room_line.room_id.name
-                )
-
-    def action_reserve(self):
-        """Enhanced reserve with availability validation"""
-        self._validate_room_availability()
-    
-    # booking_checkin_date = fields.Datetime(
-    #     string="Booking Check In",
-    #     compute='_compute_booking_dates',
-    #     store=True,
-    #     help="Earliest check-in date across all rooms"
-    # )
-
-
-    # booking_checkout_date = fields.Datetime(
-    #     string="Booking Check Out",
-    #     compute='_compute_booking_dates',
-    #     store=True,
-    #     help="Latest check-out date across all rooms"
-    # )
+    booking_checkout_date = fields.Datetime(
+        string="Booking Check Out",
+        compute='_compute_booking_dates',
+        store=True,
+        help="Latest check-out date across all rooms"
+    )
 
     primary_room_id = fields.Many2one(
         'hotel.room',
@@ -274,56 +269,70 @@ class RoomBooking(models.Model):
         store=True,
         help="Primary room for calendar display"
     )
-    
-    
-    def unlink(self):
-        """Override unlink to free up rooms when reservation is deleted"""
+
+    # NEW: Duration calculation based on booking dates
+    @api.depends('checkin_date', 'checkout_date')
+    def _compute_duration(self):
+        """Compute duration in days"""
         for booking in self:
-            if booking.room_line_ids:
-                for room_line in booking.room_line_ids:
-                    room_line.room_id.write({
-                        'status': 'available',
-                        'is_room_avail': True
-                    })
-        return super().unlink()
-    
-    # @api.depends('room_line_ids.checkin_date', 'room_line_ids.checkout_date')
-    # def _compute_booking_dates(self):
-    #     for booking in self:
-    #         if booking.room_line_ids:
-    #             booking.booking_checkin_date = min(
-    #                 booking.room_line_ids.mapped('checkin_date'))
-    #             booking.booking_checkout_date = max(
-    #                 booking.room_line_ids.mapped('checkout_date'))
-    #         else:
-    #             booking.booking_checkin_date = False
-    #             booking.booking_checkout_date = False
+            if booking.checkin_date and booking.checkout_date:
+                delta = booking.checkout_date - booking.checkin_date
+                booking.duration = delta.days + (1 if delta.seconds > 0 else 0)
+            else:
+                booking.duration = 0
+
+    # NEW: Date validation
     @api.constrains('checkin_date', 'checkout_date')
     def _check_dates(self):
-        """Validate that checkout is after checkin"""
+        """Validate checkin and checkout dates"""
         for booking in self:
             if booking.checkin_date and booking.checkout_date:
                 if booking.checkout_date <= booking.checkin_date:
                     raise ValidationError(
                         _("Checkout date must be after checkin date"))
 
+    # NEW: Automatic date propagation to room lines
+    @api.onchange('checkin_date', 'checkout_date')
+    def _onchange_booking_dates(self):
+        """When booking dates change, update all room lines"""
+        if self.checkin_date and self.checkout_date:
+            for line in self.room_line_ids:
+                line.checkin_date = self.checkin_date
+                line.checkout_date = self.checkout_date
 
-
-    @api.depends('room_line_ids.room_id')
-    def _compute_primary_room_id(self):
-        for booking in self:
-            booking.primary_room_id = booking.room_line_ids[:1].room_id if booking.room_line_ids else False
-
-    
-    
-
-    @api.depends('room_line_ids.room_id')
-    def _compute_primary_room_id(self):
+    def unlink(self):
+        """Override unlink to free up rooms when reservation is deleted"""
         for booking in self:
             if booking.room_line_ids:
-                booking.primary_room_id = booking.room_line_ids[0].room_id.id
+                for room_line in booking.room_line_ids:
+                    # NEW: Free up all rooms with same physical_room_code
+                    same_physical_rooms = self.env['hotel.room'].search([
+                        ('physical_room_code', '=',
+                         room_line.room_id.physical_room_code)
+                    ])
+                    same_physical_rooms.write({
+                        'status': 'available',
+                        'is_room_avail': True
+                    })
+        return super().unlink()
+
+    @api.depends('room_line_ids.checkin_date', 'room_line_ids.checkout_date')
+    def _compute_booking_dates(self):
+        for booking in self:
+            if booking.room_line_ids:
+                booking.booking_checkin_date = min(
+                    booking.room_line_ids.mapped('checkin_date'))
+                booking.booking_checkout_date = max(
+                    booking.room_line_ids.mapped('checkout_date'))
             else:
-                booking.primary_room_id = False
+                booking.booking_checkin_date = False
+                booking.booking_checkout_date = False
+
+    @api.depends('room_line_ids.room_id')
+    def _compute_primary_room_id(self):
+        for booking in self:
+            booking.primary_room_id = booking.room_line_ids[:
+                                                            1].room_id if booking.room_line_ids else False
 
     @api.model
     def create(self, vals_list):
@@ -420,8 +429,8 @@ class RoomBooking(models.Model):
                                     booking_list.append(
                                         {'name': room.room_id.name,
                                          "quantity": booking_dict[
-                                                         'quantity'] - rec[
-                                                         'quantity'],
+                                             'quantity'] - rec[
+                                             'quantity'],
                                          "price_unit": room.price_unit,
                                          "product_type": 'room'})
                                 else:
@@ -455,8 +464,8 @@ class RoomBooking(models.Model):
             amount_total_event += sum(event_lines.mapped('price_total'))
         for rec in self:
             rec.amount_untaxed = amount_untaxed_food + amount_untaxed_room + \
-                                 amount_untaxed_fleet + \
-                                 amount_untaxed_event + amount_untaxed_service
+                amount_untaxed_fleet + \
+                amount_untaxed_event + amount_untaxed_service
             rec.amount_untaxed_food = amount_untaxed_food
             rec.amount_untaxed_room = amount_untaxed_room
             rec.amount_untaxed_fleet = amount_untaxed_fleet
@@ -517,27 +526,22 @@ class RoomBooking(models.Model):
         self._compute_amount_untaxed()
         self.invoice_button_visible = False
 
+    # MODIFIED: Enhanced validation for physical room conflicts
     @api.constrains("room_line_ids")
-    def _check_duplicate_folio_room_line(self):
+    def _check_duplicate_physical_rooms(self):
         """
-        This method is used to validate the room_lines.
-        ------------------------------------------------
-        @param self: object pointer
-        @return: raise warning depending on the validation
+        Validate that the same physical room is not booked multiple times
         """
         for record in self:
-            # Create a set of unique ids
-            ids = set()
+            physical_room_codes = []
             for line in record.room_line_ids:
-                if line.room_id.id in ids:
+                if line.room_id.physical_room_code in physical_room_codes:
                     raise ValidationError(
-                        _(
-                            """Room Entry Duplicates Found!, """
-                            """You Cannot Book "%s" Room More Than Once!"""
-                        )
-                        % line.room_id.name
+                        _("Physical Room '%s' is already selected! "
+                          "You cannot book the same physical room with different room types.")
+                        % line.room_id.physical_room_code
                     )
-                ids.add(line.room_id.id)
+                physical_room_codes.append(line.room_id.physical_room_code)
 
     def create_list(self, line_ids):
         """Returns a Dictionary containing the Booking line Values"""
@@ -570,7 +574,7 @@ class RoomBooking(models.Model):
         return booking_dict
 
     def action_reserve(self):
-        """Button Reserve Function"""
+        """Button Reserve Function - ENHANCED with physical room checking"""
         if self.state == 'reserved':
             message = _("Room Already Reserved.")
             return {
@@ -582,31 +586,76 @@ class RoomBooking(models.Model):
                     'next': {'type': 'ir.actions.act_window_close'},
                 }
             }
-        if self.room_line_ids:
-            for room in self.room_line_ids:
-                if room.room_id.status == 'unavailable':
-                    raise ValidationError(_("The room '%s' is currently unavailable for maintenance and cannot be reserved.") % room.room_id.name)
-                room.room_id.write({
-                    'status': 'reserved',
-                })
-                room.room_id.is_room_avail = False
-            self.write({"state": "reserved"})
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'type': 'success',
-                    'message': "Rooms reserved Successfully!",
-                    'next': {'type': 'ir.actions.act_window_close'},
-                }
+
+        if not self.room_line_ids:
+            raise ValidationError(_("Please Enter Room Details"))
+
+        # NEW: Check availability for all selected rooms
+        for room_line in self.room_line_ids:
+            if room_line.room_id.is_unavailable_for_maintenance:
+                raise ValidationError(
+                    _("The room '%s' is currently unavailable for maintenance and cannot be reserved.") % room_line.room_id.display_name_full)
+
+            if not room_line.room_id.check_room_availability(
+                    self.checkin_date, self.checkout_date, self.id):
+
+                # Find conflicting bookings for better error message
+                conflicting_bookings = self.env['room.booking.line'].search([
+                    ('room_id.physical_room_code', '=',
+                     room_line.room_id.physical_room_code),
+                    ('booking_id.state', 'in', ['reserved', 'check_in']),
+                    ('checkin_date', '<', self.checkout_date),
+                    ('checkout_date', '>', self.checkin_date),
+                    ('booking_id', '!=', self.id)
+                ])
+
+                conflict_details = []
+                for booking in conflicting_bookings:
+                    conflict_details.append(
+                        f"Booking {booking.booking_id.name} - {booking.room_id.display_name_full} "
+                        f"({booking.checkin_date.strftime('%Y-%m-%d')} to {booking.checkout_date.strftime('%Y-%m-%d')})"
+                    )
+
+                raise ValidationError(
+                    _("Physical room '%s' is not available for the selected dates "
+                      "(%s to %s).\n\nConflicting bookings:\n%s\n\n"
+                      "Please choose different dates or another room.") % (
+                        room_line.room_id.physical_room_code,
+                        self.checkin_date.strftime('%Y-%m-%d'),
+                        self.checkout_date.strftime('%Y-%m-%d'),
+                        '\n'.join(conflict_details)
+                    ))
+
+        # NEW: Reserve all rooms with same physical_room_code for each selected room
+        for room_line in self.room_line_ids:
+            same_physical_rooms = self.env['hotel.room'].search([
+                ('physical_room_code', '=', room_line.room_id.physical_room_code)
+            ])
+            same_physical_rooms.write({
+                'status': 'reserved',
+                'is_room_avail': False
+            })
+
+        self.write({"state": "reserved"})
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': 'success',
+                'message': "Rooms reserved Successfully!",
+                'next': {'type': 'ir.actions.act_window_close'},
             }
-        raise ValidationError(_("Please Enter Room Details"))
+        }
 
     def action_cancel(self):
-        """Cancel reservation and free rooms"""
+        """Cancel reservation and free rooms - ENHANCED with physical room handling"""
         if self.room_line_ids:
             for room_line in self.room_line_ids:
-                room_line.room_id.write({
+                # NEW: Free all rooms with same physical_room_code
+                same_physical_rooms = self.env['hotel.room'].search([
+                    ('physical_room_code', '=', room_line.room_id.physical_room_code)
+                ])
+                same_physical_rooms.write({
                     'status': 'available',
                     'is_room_avail': True
                 })
@@ -661,14 +710,28 @@ class RoomBooking(models.Model):
         self.write({"state": "done"})
 
     def action_checkout(self):
-        """Button action_heck_out function"""
-        self.write({"state": "check_out"})
-        for room in self.room_line_ids:
-            room.room_id.write({
-                'status': 'available',
-                'is_room_avail': True
-            })
-            room.write({'checkout_date': datetime.today()})
+        """Button action_check_out function - ENHANCED with physical room handling"""
+        if self.room_line_ids:
+            for room_line in self.room_line_ids:
+                # NEW: Free all rooms with same physical_room_code
+                same_physical_rooms = self.env['hotel.room'].search([
+                    ('physical_room_code', '=', room_line.room_id.physical_room_code)
+                ])
+                same_physical_rooms.write({
+                    'status': 'available',
+                    'is_room_avail': True
+                })
+
+        self.write({"state": "check_out", "is_checkin": False})
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': 'success',
+                'message': "Booking Checked Out Successfully!",
+                'next': {'type': 'ir.actions.act_window_close'},
+            }
+        }
 
     def action_invoice(self):
         """Method for creating invoice"""
@@ -717,27 +780,30 @@ class RoomBooking(models.Model):
         }
 
     def action_checkin(self):
-        """
-        @param self: object pointer
-        """
+        """Check in action - ENHANCED with physical room handling"""
         if not self.room_line_ids:
             raise ValidationError(_("Please Enter Room Details"))
-        else:
-            for room in self.room_line_ids:
-                room.room_id.write({
-                    'status': 'occupied',
-                })
-                room.room_id.is_room_avail = False
-            self.write({"state": "check_in"})
-            return {
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'type': 'success',
-                    'message': "Booking Checked In Successfully!",
-                    'next': {'type': 'ir.actions.act_window_close'},
-                }
+
+        for room_line in self.room_line_ids:
+            # NEW: Set all rooms with same physical_room_code as occupied
+            same_physical_rooms = self.env['hotel.room'].search([
+                ('physical_room_code', '=', room_line.room_id.physical_room_code)
+            ])
+            same_physical_rooms.write({
+                'status': 'occupied',
+                'is_room_avail': False
+            })
+
+        self.write({"state": "check_in", "is_checkin": True})
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': 'success',
+                'message': "Booking Checked In Successfully!",
+                'next': {'type': 'ir.actions.act_window_close'},
             }
+        }
 
     def get_details(self):
         """ Returns different counts for displaying in dashboard"""

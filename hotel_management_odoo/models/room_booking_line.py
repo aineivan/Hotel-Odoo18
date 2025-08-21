@@ -1,26 +1,9 @@
 # -*- coding: utf-8 -*-
-###############################################################################
-#
-#    Cybrosys Technologies Pvt. Ltd.
-#
-#    Copyright (C) 2024-TODAY Cybrosys Technologies(<https://www.cybrosys.com>)
-#    Author: ADARSH K (odoo@cybrosys.com)
-#
-#    You can modify it under the terms of the GNU LESSER
-#    GENERAL PUBLIC LICENSE (LGPL v3), Version 3.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU LESSER GENERAL PUBLIC LICENSE (LGPL v3) for more details.
-#
-#    You should have received a copy of the GNU LESSER GENERAL PUBLIC LICENSE
-#    (LGPL v3) along with this program.
-#    If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
 from odoo import api, fields, models, tools, _
 from odoo.exceptions import ValidationError
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class RoomBookingLine(models.Model):
@@ -34,46 +17,56 @@ class RoomBookingLine(models.Model):
         return self.env.ref('uom.product_uom_day')
 
     booking_id = fields.Many2one("room.booking", string="Booking",
-                                 help="Indicates the Room",
+                                 help="Indicates the Booking",
                                  ondelete="cascade")
-    # checkin_date = fields.Datetime(string="Check In",
-    #                                help="You can choose the date,"
-    #                                     " Otherwise sets to current Date",
-    #                                required=True)
-    # checkout_date = fields.Datetime(string="Check Out",
-    #                                 help="You can choose the date,"
-    #                                      " Otherwise sets to current Date",
-    #                                 required=True)
-    checkin_date = fields.Datetime(
-        related='booking_id.checkin_date', string="Check In", store=True)
-    checkout_date = fields.Datetime(
-        related='booking_id.checkout_date', string="Check Out", store=True)
+
+    # INHERITED FROM BOOKING: These are computed from booking level
+    checkin_date = fields.Datetime(string="Check In",
+                                   related='booking_id.checkin_date',
+                                   store=True, readonly=True,
+                                   help="Check-in date from booking")
+    checkout_date = fields.Datetime(string="Check Out",
+                                    related='booking_id.checkout_date',
+                                    store=True, readonly=True,
+                                    help="Check-out date from booking")
 
     room_id = fields.Many2one('hotel.room', string="Room",
-                              help="Indicates the Room",
+                              help="Select specific room configuration",
                               required=True,
                               domain="[('status', '=', 'available')]")
+
+    # NEW: Physical room identification
+    physical_room_code = fields.Char(related='room_id.physical_room_code',
+                                     store=True, readonly=True,
+                                     string="Physical Room")
+
     uom_qty = fields.Float(string="Duration",
-                           help="The quantity converted into the UoM used by "
-                                "the product", readonly=True)
+                           compute='_compute_duration',
+                           store=True,
+                           help="Duration in days calculated from booking dates")
     uom_id = fields.Many2one('uom.uom',
                              default=_set_default_uom_id,
                              string="Unit of Measure",
-                             help="This will set the unit of measure used",
+                             help="Unit of measure",
                              readonly=True)
-    price_unit = fields.Float(related='room_id.list_price', string='Rent',
+
+    price_unit = fields.Float(related='room_id.list_price',
+                              string='Rent per Day',
                               digits='Product Price',
-                              help="The rent price of the selected room.")
+                              help="The rent price per day for the selected room.")
+
     tax_ids = fields.Many2many('account.tax',
                                'hotel_room_order_line_taxes_rel',
                                'room_id', 'tax_id',
                                related='room_id.taxes_ids',
                                string='Taxes',
-                               help="Default taxes used when selling the room."
-                               , domain=[('type_tax_use', '=', 'sale')])
+                               help="Default taxes used when selling the room.",
+                               domain=[('type_tax_use', '=', 'sale')])
+
     currency_id = fields.Many2one(string='Currency',
-                                  related='booking_id.pricelist_id.currency_id'
-                                  , help='The currency used')
+                                  related='booking_id.pricelist_id.currency_id',
+                                  help='The currency used')
+
     price_subtotal = fields.Float(string="Subtotal",
                                   compute='_compute_price_subtotal',
                                   help="Total Price excluding Tax",
@@ -86,51 +79,25 @@ class RoomBookingLine(models.Model):
                                compute='_compute_price_subtotal',
                                help="Total Price including Tax",
                                store=True)
+
     state = fields.Selection(related='booking_id.state',
                              string="Order Status",
-                             help=" Status of the Order",
+                             help="Status of the Order",
                              copy=False)
+
     booking_line_visible = fields.Boolean(default=False,
                                           string="Booking Line Visible",
-                                          help="If True, then Booking Line "
-                                               "will be visible")
-    
-    @api.onchange('booking_id.checkin_date', 'booking_id.checkout_date')
-    def _onchange_booking_dates(self):
-        """Update room domain based on selected dates"""
-        domain = [('status', '=', 'available')]
+                                          help="If True, then Booking Line will be visible")
 
-        if self.booking_id.checkin_date and self.booking_id.checkout_date:
-            # We'll dynamically filter available rooms in the view
-            # The actual availability check happens in room validation
-            pass
-
-        return {'domain': {'room_id': domain}}
-    
-    @api.onchange('room_id')
-    def _onchange_room_id(self):
-        """Update duration based on booking dates"""
-        if self.booking_id.checkin_date and self.booking_id.checkout_date:
-            diffdate = self.booking_id.checkout_date - self.booking_id.checkin_date
-            self.uom_qty = diffdate.days
-
-    # @api.onchange("checkin_date", "checkout_date")
-    # def _onchange_checkin_date(self):
-    #     """When you change checkin_date or checkout_date it will check
-    #     and update the qty of hotel service line"""
-    #     # Add validation to ensure both dates exist before comparing
-    #     if not self.checkin_date or not self.checkout_date:
-    #         return
-
-    #     if self.checkout_date < self.checkin_date:
-    #         raise ValidationError(
-    #             _("Checkout must be greater or equal checkin date"))
-
-    #     if self.checkin_date and self.checkout_date:
-    #         diffdate = self.checkout_date - self.checkin_date
-    #         qty = diffdate.days
-    #         if diffdate.total_seconds() > 0:
-    #             self.uom_qty = qty
+    @api.depends('booking_id.checkin_date', 'booking_id.checkout_date')
+    def _compute_duration(self):
+        """Compute duration from booking dates"""
+        for line in self:
+            if line.checkin_date and line.checkout_date:
+                delta = line.checkout_date - line.checkin_date
+                line.uom_qty = delta.days + (1 if delta.seconds > 0 else 0)
+            else:
+                line.uom_qty = 0
 
     @api.depends('uom_qty', 'price_unit', 'tax_ids')
     def _compute_price_subtotal(self):
@@ -163,12 +130,9 @@ class RoomBookingLine(models.Model):
                 line.price_total = line.price_subtotal
                 _logger.warning(
                     "Tax computation failed for booking line %s: %s", line.id, str(e))
-    def _prepare_base_line_for_taxes_computation(self):
-        """ Convert the current record to a dictionary in order to use the generic taxes computation method
-        defined on account.tax.
 
-        :return: A python dictionary.
-        """
+    def _prepare_base_line_for_taxes_computation(self):
+        """Convert the current record to a dictionary for tax computation"""
         self.ensure_one()
         return self.env['account.tax']._prepare_base_line_for_taxes_computation(
             self,
@@ -180,28 +144,81 @@ class RoomBookingLine(models.Model):
             },
         )
 
-    # @api.onchange('checkin_date', 'checkout_date', 'room_id')
-    # def onchange_checkin_date(self):
-    #     """Validate room availability for the given dates"""
-    #     # Early return if any required field is missing
-    #     if not (self.checkin_date and self.checkout_date and self.room_id):
-    #         return
+    @api.onchange('room_id')
+    def _onchange_room_id(self):
+        """When room changes, validate availability"""
+        if self.room_id and self.booking_id.checkin_date and self.booking_id.checkout_date:
+            # Check if this physical room is available for the booking dates
+            if not self.room_id.check_room_availability(
+                self.booking_id.checkin_date,
+                self.booking_id.checkout_date,
+                self.booking_id.id
+            ):
+                # Find conflicting bookings for better error message
+                conflicting_bookings = self.env['room.booking.line'].search([
+                    ('room_id.physical_room_code', '=',
+                     self.room_id.physical_room_code),
+                    ('booking_id.state', 'in', ['reserved', 'check_in']),
+                    ('checkin_date', '<', self.booking_id.checkout_date),
+                    ('checkout_date', '>', self.booking_id.checkin_date),
+                    ('booking_id', '!=', self.booking_id.id)
+                ])
 
-    #     # Search for existing bookings for the same room
-    #     existing_bookings = self.env['room.booking.line'].search([
-    #         ('room_id', '=', self.room_id.id),
-    #         ('booking_id.state', 'in', ['reserved', 'check_in']),
-    #         ('id', '!=', self.id if self.id else 0)
-    #     ])
+                conflict_details = []
+                for booking in conflicting_bookings:
+                    conflict_details.append(
+                        f"Booking {booking.booking_id.name} "
+                        f"({booking.checkin_date.strftime('%Y-%m-%d')} to "
+                        f"{booking.checkout_date.strftime('%Y-%m-%d')})"
+                    )
 
-    #     for existing_line in existing_bookings:
-    #         # Check if dates overlap
-    #         if (self.checkin_date < existing_line.checkout_date and
-    #                 self.checkout_date > existing_line.checkin_date):
-    #             raise ValidationError(
-    #                 _("Room '%s' is already booked from %s to %s. "
-    #                 "Please choose different dates or another room.") % (
-    #                     self.room_id.name,
-    #                     existing_line.checkin_date.strftime('%Y-%m-%d %H:%M'),
-    #                     existing_line.checkout_date.strftime('%Y-%m-%d %H:%M')
-    #                 ))
+                raise ValidationError(
+                    _("Physical room '%s' is not available for the selected dates "
+                      "(%s to %s).\n\nConflicting bookings:\n%s\n\n"
+                      "Please choose different dates or another room.") % (
+                        self.room_id.physical_room_code,
+                        self.booking_id.checkin_date.strftime('%Y-%m-%d'),
+                        self.booking_id.checkout_date.strftime('%Y-%m-%d'),
+                        '\n'.join(conflict_details)
+                    ))
+
+    @api.model
+    def create(self, vals):
+        """Override create to validate room availability"""
+        line = super().create(vals)
+
+        # Validate availability after creation
+        if line.room_id and line.booking_id.checkin_date and line.booking_id.checkout_date:
+            if not line.room_id.check_room_availability(
+                line.booking_id.checkin_date,
+                line.booking_id.checkout_date,
+                line.booking_id.id
+            ):
+                raise ValidationError(
+                    _("Physical room '%s' is not available for the selected dates. "
+                      "Please choose different dates or another room.")
+                    % line.room_id.physical_room_code
+                )
+
+        return line
+
+    def write(self, vals):
+        """Override write to validate room availability when room changes"""
+        if 'room_id' in vals:
+            for line in self:
+                new_room = self.env['hotel.room'].browse(vals['room_id'])
+                if (new_room and line.booking_id.checkin_date and
+                        line.booking_id.checkout_date):
+
+                    if not new_room.check_room_availability(
+                        line.booking_id.checkin_date,
+                        line.booking_id.checkout_date,
+                        line.booking_id.id
+                    ):
+                        raise ValidationError(
+                            _("Physical room '%s' is not available for the selected dates. "
+                              "Please choose different dates or another room.")
+                            % new_room.physical_room_code
+                        )
+
+        return super().write(vals)
