@@ -144,7 +144,6 @@ class RoomBookingLine(models.Model):
             },
         )
 
-    # Key changes to room.booking.line model - just the modified methods
 
 
     @api.onchange('room_id')

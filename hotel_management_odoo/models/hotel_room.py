@@ -256,40 +256,22 @@ class HotelRoom(models.Model):
         # regardless of configuration, so no uniqueness counter needed here
         return physical_code
 
-    def _generate_room_config_code(self, room_name, room_type_id):
-        """Generate unique room configuration code for database uniqueness"""
-        base_code = f"RM-{room_name}"
+    def _generate_physical_room_code(self, room_name, room_type_id=None):
+        """Generate physical room code based only on the room number (ignore type)."""
+        physical_code = f"RM-{room_name}"
 
-        if room_type_id:
-            room_type = self.env['hotel.room.type'].browse(room_type_id)
-            if room_type.exists():
-                room_type_name = room_type.name.upper()
-                if 'SINGLE' in room_type_name:
-                    suffix = "-SGL"
-                elif 'DOUBLE' in room_type_name:
-                    suffix = "-DBL"
-                elif 'SUITE' in room_type_name:
-                    suffix = "-STE"
-                else:
-                    suffix = f"-{room_type_name[:3]}"
-
-                config_code = f"{base_code}{suffix}"
-            else:
-                config_code = base_code
-        else:
-            config_code = base_code
-
-        # Ensure uniqueness for room configurations
+        # Ensure uniqueness only if you accidentally reuse same room number twice
         counter = 1
-        original_code = config_code
+        original_code = physical_code
         while self.env['hotel.room'].search([
-            ('room_config_code', '=', config_code),
-            ('id', '!=', self.id if hasattr(self, 'id') else False)
+            ('physical_room_code', '=', physical_code),
+            ('id', '!=', self.id if self.id else False)
         ]):
-            config_code = f"{original_code}-{counter:02d}"
+            physical_code = f"{original_code}-{counter:02d}"
             counter += 1
 
-        return config_code
+        return physical_code
+
 
     def copy(self, default=None):
         """Override copy to ensure unique codes when duplicating"""
