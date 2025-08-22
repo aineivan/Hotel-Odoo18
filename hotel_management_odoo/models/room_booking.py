@@ -266,8 +266,21 @@ class RoomBooking(models.Model):
                                          help="This is the Total Amount for "
                                               "Fleet", tracking=5)
 
-    
-    
+    room_names = fields.Char(
+        string="Rooms",
+        compute='_compute_room_names',
+        store=True,
+        help="Names of all rooms in this reservation"
+    )
+
+
+    @api.depends('room_line_ids.room_id')
+    def _compute_room_names(self):
+        for booking in self:
+            room_names = booking.room_line_ids.mapped('room_id.name')
+            booking.room_names = ', '.join(
+                room_names) if room_names else 'No rooms selected'
+        
     @api.depends('checkin_date', 'checkout_date')
     def _compute_duration(self):
         """Compute duration in days"""
