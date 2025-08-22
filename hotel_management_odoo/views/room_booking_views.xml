@@ -348,6 +348,7 @@
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="state"/>
+                <field name="room_names"/>
             </calendar>
         </field>
     </record>
