@@ -335,36 +335,24 @@
         </field>
     </record>
     
-<!-- Room Booking Line Calendar View -->
-<record id="room_booking_line_view_calendar" model="ir.ui.view">
-    <field name="name">room.booking.line.view.calendar</field>
-    <field name="model">room.booking.line</field>
-    <field name="arch" type="xml">
-        <calendar string="Room Calendar (All Rooms)"
-                 date_start="checkin_date"
-                 date_stop="checkout_date"
-                 color="room_id"
-                 event_open_popup="true"
-                 quick_add="false">
-            <field name="room_id"/>
-            <field name="booking_id"/>
-            <field name="state"/>
-            <field name="physical_room_code"/>
-            <templates>
-                <t t-name="calendar-box">
-                    <div t-attf-class="fc-event fc-event-draggable fc-event-start fc-event-end fc-event-future" 
-                         t-attf-style="background-color: {{ color }}; border-color: {{ color }};">
-                        <div class="fc-content">
-                            <div class="fc-title">
-                                <t t-esc="event.room_id[1]"/> - <t t-esc="event.booking_id[1]"/>
-                            </div>
-                        </div>
-                    </div>
-                </t>
-            </templates>
-        </calendar>
-    </field>
-</record>
+    <!-- Room Booking Line Calendar View (fixed) -->
+    <record id="room_booking_line_view_calendar" model="ir.ui.view">
+        <field name="name">room.booking.line.view.calendar</field>
+        <field name="model">room.booking.line</field>
+        <field name="arch" type="xml">
+            <calendar string="Room Calendar (All Rooms)"
+                      date_start="checkin_date"
+                      date_stop="checkout_date"
+                      color="room_id"
+                      event_open_popup="true"
+                      quick_add="false">
+                <field name="room_id"/>
+                <field name="booking_id"/>
+                <field name="state"/>
+                <field name="physical_room_code"/>
+            </calendar>
+        </field>
+    </record>
 
     <!-- Update Action to include calendar -->
     <record id="room_booking_action" model="ir.actions.act_window">
@@ -378,27 +366,28 @@
             </p>
         </field>
     </record>
-    <!-- Action for individual room calendar -->
-       <record id="room_booking_line_calendar_action" model="ir.actions.act_window">
-       <field name="name">Room Calendar (All Rooms)</field>
-       <field name="type">ir.actions.act_window</field>
-       <field name="res_model">room.booking.line</field>
-       <field name="view_mode">calendar,list,form</field>
-       <field name="view_id" ref="room_booking_line_view_calendar"/>
-       <field name="help" type="html">
-              <p class="oe_view_nocontent_create">
-              View all individual room bookings in calendar format
-              </p>
-       </field>
-       </record>
-    <!-- Menu for the individual rooms calendar -->
-<menuitem id="room_booking_line_calendar_menu" 
-          name="Room Calendar (All Rooms)" 
-          sequence="11"
-          parent="hotel_management_menu_root"
-          action="room_booking_line_calendar_action"/>
 
-    
+    <!-- Action for individual room calendar -->
+    <record id="room_booking_line_calendar_action" model="ir.actions.act_window">
+        <field name="name">Room Calendar (All Rooms)</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">room.booking.line</field>
+        <field name="view_mode">calendar,list,form</field>
+        <field name="view_id" ref="room_booking_line_view_calendar"/>
+        <field name="help" type="html">
+            <p class="oe_view_nocontent_create">
+                View all individual room bookings in calendar format
+            </p>
+        </field>
+    </record>
+
+    <!-- Menu for the individual rooms calendar -->
+    <menuitem id="room_booking_line_calendar_menu" 
+              name="Room Calendar (All Rooms)" 
+              sequence="11"
+              parent="hotel_management_menu_root"
+              action="room_booking_line_calendar_action"/>
+
     <!-- Reservation menu -->
     <menuitem id="room_booking_menu" name="Reservation" sequence="10"
               parent="hotel_management_menu_root"
