@@ -574,7 +574,7 @@ class RoomBooking(models.Model):
         return booking_dict
 
     def action_reserve(self):
-        """Button Reserve Function - ENHANCED with physical room checking"""
+        """Button Reserve Function - ENHANCED with physical room checking and status updates"""
         if self.state == 'reserved':
             message = _("Room Already Reserved.")
             return {
@@ -602,7 +602,7 @@ class RoomBooking(models.Model):
                 # Find conflicting bookings for better error message
                 conflicting_bookings = self.env['room.booking.line'].search([
                     ('room_id.physical_room_code', '=',
-                     room_line.room_id.physical_room_code),
+                    room_line.room_id.physical_room_code),
                     ('booking_id.state', 'in', ['reserved', 'check_in']),
                     ('checkin_date', '<', self.checkout_date),
                     ('checkout_date', '>', self.checkin_date),
@@ -618,25 +618,29 @@ class RoomBooking(models.Model):
 
                 raise ValidationError(
                     _("Physical room '%s' is not available for the selected dates "
-                      "(%s to %s).\n\nConflicting bookings:\n%s\n\n"
-                      "Please choose different dates or another room.") % (
+                    "(%s to %s).\n\nConflicting bookings:\n%s\n\n"
+                    "Please choose different dates or another room.") % (
                         room_line.room_id.physical_room_code,
                         self.checkin_date.strftime('%Y-%m-%d'),
                         self.checkout_date.strftime('%Y-%m-%d'),
                         '\n'.join(conflict_details)
                     ))
 
-        # NEW: Reserve all rooms with same physical_room_code for each selected room
-        for room_line in self.room_line_ids:
-            same_physical_rooms = self.env['hotel.room'].search([
-                ('physical_room_code', '=', room_line.room_id.physical_room_code)
-            ])
-            same_physical_rooms.write({
-                'status': 'reserved',
-                'is_room_avail': False
-            })
-
+        # Update booking state first
         self.write({"state": "reserved"})
+
+        # FIXED: Trigger status recomputation for all affected physical rooms
+        physical_room_codes = set()
+        for room_line in self.room_line_ids:
+            physical_room_codes.add(room_line.room_id.physical_room_code)
+
+        # Recompute status for all room configurations of affected physical rooms
+        for physical_code in physical_room_codes:
+            affected_rooms = self.env['hotel.room'].search([
+                ('physical_room_code', '=', physical_code)
+            ])
+            affected_rooms._compute_status()
+
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -647,19 +651,25 @@ class RoomBooking(models.Model):
             }
         }
 
+
+
     def action_cancel(self):
-        """Cancel reservation and free rooms - ENHANCED with physical room handling"""
-        if self.room_line_ids:
-            for room_line in self.room_line_ids:
-                # NEW: Free all rooms with same physical_room_code
-                same_physical_rooms = self.env['hotel.room'].search([
-                    ('physical_room_code', '=', room_line.room_id.physical_room_code)
-                ])
-                same_physical_rooms.write({
-                    'status': 'available',
-                    'is_room_avail': True
-                })
+        """Cancel reservation and refresh room statuses"""
+        # Cancel the booking first
         self.write({"state": "cancel"})
+
+        # FIXED: Trigger status recomputation for all affected physical rooms
+        if self.room_line_ids:
+            physical_room_codes = set()
+            for room_line in self.room_line_ids:
+                physical_room_codes.add(room_line.room_id.physical_room_code)
+
+            # Recompute status for all room configurations of affected physical rooms
+            for physical_code in physical_room_codes:
+                affected_rooms = self.env['hotel.room'].search([
+                    ('physical_room_code', '=', physical_code)
+                ])
+                affected_rooms._compute_status()
 
     def action_maintenance_request(self):
         """
@@ -710,19 +720,23 @@ class RoomBooking(models.Model):
         self.write({"state": "done"})
 
     def action_checkout(self):
-        """Button action_check_out function - ENHANCED with physical room handling"""
-        if self.room_line_ids:
-            for room_line in self.room_line_ids:
-                # NEW: Free all rooms with same physical_room_code
-                same_physical_rooms = self.env['hotel.room'].search([
-                    ('physical_room_code', '=', room_line.room_id.physical_room_code)
-                ])
-                same_physical_rooms.write({
-                    'status': 'available',
-                    'is_room_avail': True
-                })
-
+        """Button action_check_out function with proper status updates"""
+        # Update booking state first
         self.write({"state": "check_out", "is_checkin": False})
+
+        # FIXED: Trigger status recomputation for all affected physical rooms
+        if self.room_line_ids:
+            physical_room_codes = set()
+            for room_line in self.room_line_ids:
+                physical_room_codes.add(room_line.room_id.physical_room_code)
+
+            # Recompute status for all room configurations of affected physical rooms
+            for physical_code in physical_room_codes:
+                affected_rooms = self.env['hotel.room'].search([
+                    ('physical_room_code', '=', physical_code)
+                ])
+                affected_rooms._compute_status()
+
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -732,7 +746,6 @@ class RoomBooking(models.Model):
                 'next': {'type': 'ir.actions.act_window_close'},
             }
         }
-
     def action_invoice(self):
         """Method for creating invoice"""
         if not self.room_line_ids:
@@ -780,21 +793,25 @@ class RoomBooking(models.Model):
         }
 
     def action_checkin(self):
-        """Check in action - ENHANCED with physical room handling"""
+        """Check in action with proper status updates"""
         if not self.room_line_ids:
             raise ValidationError(_("Please Enter Room Details"))
 
-        for room_line in self.room_line_ids:
-            # NEW: Set all rooms with same physical_room_code as occupied
-            same_physical_rooms = self.env['hotel.room'].search([
-                ('physical_room_code', '=', room_line.room_id.physical_room_code)
-            ])
-            same_physical_rooms.write({
-                'status': 'occupied',
-                'is_room_avail': False
-            })
-
+        # Update booking state first
         self.write({"state": "check_in", "is_checkin": True})
+
+        # FIXED: Trigger status recomputation for all affected physical rooms
+        physical_room_codes = set()
+        for room_line in self.room_line_ids:
+            physical_room_codes.add(room_line.room_id.physical_room_code)
+
+        # Recompute status for all room configurations of affected physical rooms
+        for physical_code in physical_room_codes:
+            affected_rooms = self.env['hotel.room'].search([
+                ('physical_room_code', '=', physical_code)
+            ])
+            affected_rooms._compute_status()
+
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -804,7 +821,6 @@ class RoomBooking(models.Model):
                 'next': {'type': 'ir.actions.act_window_close'},
             }
         }
-
     def get_details(self):
         """ Returns different counts for displaying in dashboard"""
         today = datetime.today()

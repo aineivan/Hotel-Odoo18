@@ -114,33 +114,41 @@ class HotelRoom(models.Model):
 
     @api.depends('is_unavailable_for_maintenance')
     def _compute_status(self):
-        """Compute the status of all rooms that share the same physical room code"""
+        """FIXED: Computes the status of each room configuration based on physical room bookings."""
         for room in self:
-            # Maintenance overrides everything
             if room.is_unavailable_for_maintenance:
-                siblings = self.search(
-                    [('physical_room_code', '=', room.physical_room_code)])
-                siblings.update({'status': 'unavailable', 'is_room_avail': False})
+                room.status = 'unavailable'
+                room.is_room_avail = False
                 continue
 
-            # Check active bookings for this physical room
+            # Find active bookings for this physical room
             active_bookings = self.env['room.booking.line'].search([
                 ('room_id.physical_room_code', '=', room.physical_room_code),
                 ('booking_id.state', 'in', ['reserved', 'check_in']),
                 ('checkout_date', '>', fields.Datetime.now())
             ])
 
-            siblings = self.search(
-                [('physical_room_code', '=', room.physical_room_code)])
-
             if active_bookings:
-                # If any booking is check_in → occupied, otherwise reserved
-                if any(b.booking_id.state == 'check_in' for b in active_bookings):
-                    siblings.update({'status': 'occupied', 'is_room_avail': False})
+                # Check if this specific room configuration is booked
+                booked_directly = active_bookings.filtered(
+                    lambda b: b.room_id.id == room.id
+                )
+
+                if booked_directly:
+                    # This specific configuration is booked
+                    if any(booking.booking_id.state == 'check_in' for booking in booked_directly):
+                        room.status = 'occupied'
+                    else:
+                        room.status = 'reserved'
+                    room.is_room_avail = False
                 else:
-                    siblings.update({'status': 'reserved', 'is_room_avail': False})
+                    # Another configuration of the same physical room is booked
+                    room.status = 'unavailable'
+                    room.is_room_avail = False
             else:
-                siblings.update({'status': 'available', 'is_room_avail': True})
+                # No active bookings for this physical room
+                room.status = 'available'
+                room.is_room_avail = True
 
     def check_room_availability(self, checkin_date, checkout_date, exclude_booking_id=None):
         """
@@ -251,16 +259,6 @@ class HotelRoom(models.Model):
         return super().write(vals)
 
     def _generate_physical_room_code(self, room_name):
-        """
-        FIXED: Generate physical room code - same for all configurations of the same room
-        """
-        physical_code = f"RM-{room_name}"
-
-        # For physical rooms, we want the same room number to have the same code
-        # regardless of configuration, so no uniqueness counter needed here
-        return physical_code
-
-    def _generate_physical_room_code(self, room_name, room_type_id=None):
         """Generate physical room code based only on the room number (ignore type)."""
         physical_code = f"RM-{room_name}"
 
@@ -276,6 +274,27 @@ class HotelRoom(models.Model):
 
         return physical_code
 
+    def _generate_room_config_code(self, room_name, room_type_id):
+        """Generate room configuration code including room type"""
+        if room_type_id:
+            room_type = self.env['hotel.room.type'].browse(room_type_id)
+            type_code = room_type.name[:3].upper() if room_type.name else 'STD'
+        else:
+            type_code = 'STD'
+
+        config_code = f"RM-{room_name}-{type_code}"
+
+        # Ensure uniqueness
+        counter = 1
+        original_code = config_code
+        while self.env['hotel.room'].search([
+            ('room_config_code', '=', config_code),
+            ('id', '!=', self.id if self.id else False)
+        ]):
+            config_code = f"{original_code}-{counter:02d}"
+            counter += 1
+
+        return config_code
 
     def copy(self, default=None):
         """Override copy to ensure unique codes when duplicating"""
@@ -288,3 +307,8 @@ class HotelRoom(models.Model):
             default['room_config_code'] = False
 
         return super().copy(default)
+
+    def refresh_status(self):
+        """Method to manually refresh room status - useful for debugging"""
+        self._compute_status()
+        return True
