@@ -114,29 +114,33 @@ class HotelRoom(models.Model):
 
     @api.depends('is_unavailable_for_maintenance')
     def _compute_status(self):
-        """Computes the status of the room based on the maintenance switch."""
+        """Compute the status of all rooms that share the same physical room code"""
         for room in self:
+            # Maintenance overrides everything
             if room.is_unavailable_for_maintenance:
-                room.status = 'unavailable'
-                room.is_room_avail = False
-            else:
-                # FIXED: Check if the physical room is booked (any configuration)
-                active_bookings = self.env['room.booking.line'].search([
-                    ('room_id.physical_room_code', '=', room.physical_room_code),
-                    ('booking_id.state', 'in', ['reserved', 'check_in']),
-                    ('checkout_date', '>', fields.Datetime.now())
-                ])
+                siblings = self.search(
+                    [('physical_room_code', '=', room.physical_room_code)])
+                siblings.update({'status': 'unavailable', 'is_room_avail': False})
+                continue
 
-                if active_bookings:
-                    # Determine status based on booking state
-                    if any(booking.booking_id.state == 'check_in' for booking in active_bookings):
-                        room.status = 'occupied'
-                    else:
-                        room.status = 'reserved'
-                    room.is_room_avail = False
+            # Check active bookings for this physical room
+            active_bookings = self.env['room.booking.line'].search([
+                ('room_id.physical_room_code', '=', room.physical_room_code),
+                ('booking_id.state', 'in', ['reserved', 'check_in']),
+                ('checkout_date', '>', fields.Datetime.now())
+            ])
+
+            siblings = self.search(
+                [('physical_room_code', '=', room.physical_room_code)])
+
+            if active_bookings:
+                # If any booking is check_in → occupied, otherwise reserved
+                if any(b.booking_id.state == 'check_in' for b in active_bookings):
+                    siblings.update({'status': 'occupied', 'is_room_avail': False})
                 else:
-                    room.status = 'available'
-                    room.is_room_avail = True
+                    siblings.update({'status': 'reserved', 'is_room_avail': False})
+            else:
+                siblings.update({'status': 'available', 'is_room_avail': True})
 
     def check_room_availability(self, checkin_date, checkout_date, exclude_booking_id=None):
         """
