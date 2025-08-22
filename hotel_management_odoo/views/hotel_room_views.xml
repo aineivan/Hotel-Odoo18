@@ -7,10 +7,14 @@
         <field name="arch" type="xml">
             <list>
                 <field name="name"/>
+                <field name="physical_room_code"/>
+                <field name="room_config_code"/>
                 <field name="room_type"/>
+                <field name="num_person"/>
                 <field name="floor_id"/>
                 <field name="list_price"/>
                 <field name="status"/>
+                <field name="is_unavailable_for_maintenance"/>
             </list>
         </field>
     </record>
@@ -45,21 +49,20 @@
                             <group>
                                 <group>
                                     <field name="floor_id" string="Floor"/>
-                                    <field name="user_id" select="2"
-                                           string="Room Manager"/>
-                                    <field name="taxes_ids"
-                                           widget="many2many_tags"
-                                           string="Customer Taxes"/>
-                                           <field name="physical_room_code"></field>
+                                    <field name="user_id" string="Room Manager"/>
+                                    <field name="taxes_ids" widget="many2many_tags" string="Customer Taxes"/>
+                                    <field name="physical_room_code"/>
+                                    <field name="room_config_code"/>
                                 </group>
                                 <group>
                                     <field name="room_type"/>
-                                    <field name="list_price" widget="monetary"
-                                           string="Rent"/>
+                                    <field name="list_price" widget="monetary" string="Rent"/>
                                     <field name="num_person"/>
                                     <field name="uom_id" invisible="1"/>
+                                    <field name="is_room_avail" readonly="1"/>
                                 </group>
                             </group>
+
                         </page>
                         <page string="Amenities">
                             <group>
