@@ -244,8 +244,7 @@ class RoomBooking(models.Model):
                                          help="This is the Total Amount for "
                                               "Fleet", tracking=5)
 
-    booking_id = fields.Many2one(
-        'room.booking', string='Booking Reference', required=True, ondelete='cascade')
+    
     room_id = fields.Many2one('hotel.room', string='Room', required=True)
 
     customer_id = fields.Many2one(
@@ -262,12 +261,15 @@ class RoomBooking(models.Model):
    
 
     display_name = fields.Char(
-        string='Display Name', compute='_compute_display_name', store=True)
+    string='Display Name', compute='_compute_display_name', store=True)
 
-    @api.depends('booking_id.name', 'room_id.name', 'customer_id.name')
+    @api.depends('booking_id.name', 'room_id.name')
     def _compute_display_name(self):
         for line in self:
-            line.display_name = f"{line.booking_name} - {line.room_id.name} ({line.customer_id.name})"
+            if line.booking_id and line.room_id:
+                line.display_name = f"{line.booking_id.name} - {line.room_id.name}"
+            else:
+                line.display_name = False
 
     def name_get(self):
         """Override name_get for better display in calendar"""
