@@ -341,21 +341,13 @@
         <field name="name">room.booking.view.calendar</field>
         <field name="model">room.booking</field>
         <field name="arch" type="xml">
-            <calendar string="Hotel Bookings Calendar"
-                     date_start="checkin_date"
-                     date_stop="checkout_date"
-                     color="state"
-                     event_open_popup="true"
-                     quick_add="false"
-                     mode="month">
+            <calendar date_start="checkin_date" 
+                      date_stop="checkout_date" 
+                      string="Bookings Calendar"
+                      color="state">
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="state"/>
-                <field name="room_names"/>
-                <field name="customer_note"/>
-                <field name="note"/>
-                <field name="source"/>
-                <field name="duration"/>
             </calendar>
         </field>
     </record>
