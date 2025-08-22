@@ -36,6 +36,25 @@ class RoomBooking(models.Model):
                             help="Notes visible to the customer")
     note = fields.Text(string="Internal Notes", 
                     help="Internal notes for staff only")
+    source = fields.Selection(
+        selection=[
+            ('booking.com', 'Booking.com'),
+            ('expedia', 'Expedia'),
+            ('phone_call', 'Phone Call'),
+            ('whatsapp', 'WhatsApp Message'),
+            ('email', 'Email'),
+            ('walkin', 'Walk-in'),
+            ('referral', 'Referral'),
+            ('loyal_guest', 'Loyal Returning Guest/Institution'),
+            ('resident_guest', 'Resident Guest/Guests'),
+            ('mowi_website', 'Mowi Website'),
+            ('other', 'Other')
+        ],
+        string="Source",
+        help="How did the guest hear about us/make the reservation?",
+        tracking=True,
+        default='walkin'  
+    )
 
     name = fields.Char(string="Folio Number", readonly=True, index=True, copy=False,
                        default="New", help="Name of Folio")

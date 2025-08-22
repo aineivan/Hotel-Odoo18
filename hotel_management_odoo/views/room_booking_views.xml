@@ -74,6 +74,7 @@
                             <!-- Make checkin/checkout dates visible and required -->
                             <field name="checkin_date" required="1"/>
                             <field name="checkout_date" required="1"/>
+                            <field name="source"/>
                             <field name="need_service"
                                    invisible=" state not in ['check_in']"/>
                             <field name="need_fleet"
