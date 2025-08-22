@@ -148,7 +148,30 @@ class RoomBookingLine(models.Model):
 
     @api.onchange('room_id')
     def _onchange_room_id(self):
-        """When room changes, validate availability - FIXED for physical room logic"""
+        """When room changes, validate availability and check for duplicates"""
+        if not self.room_id:
+            return
+
+        # First check for duplicate physical rooms in the same booking
+        if self.booking_id and self.booking_id.room_line_ids:
+            existing_physical_codes = []
+            for line in self.booking_id.room_line_ids:
+                if line.id != self.id and line.room_id and line.room_id.physical_room_code:
+                    existing_physical_codes.append(line.room_id.physical_room_code)
+
+            if self.room_id.physical_room_code in existing_physical_codes:
+                return {
+                    'warning': {
+                        'title': _('Duplicate Physical Room'),
+                        'message': _(
+                            "Physical Room '%s' is already selected in this booking!\n\n"
+                            "You cannot book the same physical room multiple times with different configurations.\n"
+                            "Please choose a different room."
+                        ) % self.room_id.physical_room_code
+                    }
+                }
+
+        # Then check availability if booking dates exist
         if self.room_id and self.booking_id.checkin_date and self.booking_id.checkout_date:
             # Check if this physical room is available for the booking dates
             if not self.room_id.check_room_availability(
@@ -187,8 +210,22 @@ class RoomBookingLine(models.Model):
 
     @api.model
     def create(self, vals):
-        """Override create to validate room availability"""
+        """Override create to validate no duplicate physical rooms"""
         line = super().create(vals)
+
+        # Check for duplicate physical rooms in the same booking
+        if line.room_id and line.booking_id:
+            duplicate_lines = line.booking_id.room_line_ids.filtered(
+                lambda l: l.id != line.id and
+                l.room_id.physical_room_code == line.room_id.physical_room_code
+            )
+
+            if duplicate_lines:
+                raise ValidationError(
+                    _("Physical Room '%s' is already selected in this booking!\n\n"
+                    "You cannot book the same physical room multiple times.")
+                    % line.room_id.physical_room_code
+                )
 
         # Validate availability after creation
         if line.room_id and line.booking_id.checkin_date and line.booking_id.checkout_date:
@@ -207,22 +244,36 @@ class RoomBookingLine(models.Model):
 
 
     def write(self, vals):
-        """Override write to validate room availability when room changes"""
+        """Override write to validate no duplicate physical rooms when room changes"""
         if 'room_id' in vals:
             for line in self:
                 new_room = self.env['hotel.room'].browse(vals['room_id'])
-                if (new_room and line.booking_id.checkin_date and
-                        line.booking_id.checkout_date):
+                if new_room and line.booking_id:
 
-                    if not new_room.check_room_availability(
-                        line.booking_id.checkin_date,
-                        line.booking_id.checkout_date,
-                        line.booking_id.id
-                    ):
+                    # Check for duplicates
+                    duplicate_lines = line.booking_id.room_line_ids.filtered(
+                        lambda l: l.id != line.id and
+                        l.room_id.physical_room_code == new_room.physical_room_code
+                    )
+
+                    if duplicate_lines:
                         raise ValidationError(
-                            _("Physical room '%s' is not available for the selected dates. "
-                            "Please choose different dates or another room.")
+                            _("Physical Room '%s' is already selected in this booking!\n\n"
+                            "You cannot book the same physical room multiple times.")
                             % new_room.physical_room_code
                         )
+
+                    # Check availability
+                    if (line.booking_id.checkin_date and line.booking_id.checkout_date):
+                        if not new_room.check_room_availability(
+                            line.booking_id.checkin_date,
+                            line.booking_id.checkout_date,
+                            line.booking_id.id
+                        ):
+                            raise ValidationError(
+                                _("Physical room '%s' is not available for the selected dates. "
+                                "Please choose different dates or another room.")
+                                % new_room.physical_room_code
+                            )
 
         return super().write(vals)

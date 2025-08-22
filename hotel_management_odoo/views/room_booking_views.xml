@@ -343,11 +343,15 @@
             <calendar string="Room Booking Calendar"
                      date_start="checkin_date"
                      date_stop="checkout_date"
-                     color="primary_room_id">
+                     color="state"
+                     event_open_popup="true"
+                     quick_add="false">
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="state"/>
-                <field name="primary_room_id"/>
+                <field name="customer_note"/>
+                <field name="note"/>
+                <field name="room_line_ids"/>
             </calendar>
         </field>
     </record>
@@ -364,6 +368,26 @@
             </p>
         </field>
     </record>
+    <record id="room_booking_line_calendar_action" model="ir.actions.act_window">
+        <field name="name">Room Calendar (All Rooms)</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">room.booking.line</field>
+        <field name="view_mode">calendar,list,form</field>
+        <field name="view_id" ref="room_booking_line_view_calendar"/>
+        <field name="help" type="html">
+            <p class="oe_view_nocontent_create">
+                View all individual room bookings in calendar format
+            </p>
+        </field>
+    </record>
+
+    <!-- Add menu for the individual rooms calendar -->
+    <menuitem id="room_booking_line_calendar_menu" 
+              name="Room Calendar (All Rooms)" 
+              sequence="11"
+              parent="hotel_management_menu_root"
+              action="room_booking_line_calendar_action"/>
+
     
     <!-- Reservation menu -->
     <menuitem id="room_booking_menu" name="Reservation" sequence="10"

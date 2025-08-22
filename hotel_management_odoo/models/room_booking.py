@@ -32,11 +32,7 @@ class RoomBooking(models.Model):
     _description = "Hotel Room Reservation"
     _inherit = ['mail.thread', 'mail.activity.mixin']
 
-    note = fields.Text(string='Internal Notes',
-                       help="Internal notes for this booking")
-    customer_note = fields.Text(
-        string='Customer Notes', help="Notes visible to the customer")
-
+    
 
     name = fields.Char(string="Folio Number", readonly=True, index=True, copy=False,
                        default="New", help="Name of Folio")
@@ -248,28 +244,40 @@ class RoomBooking(models.Model):
                                          help="This is the Total Amount for "
                                               "Fleet", tracking=5)
 
-    booking_checkin_date = fields.Datetime(
-        string="Booking Check In",
-        compute='_compute_booking_dates',
-        store=True,
-        help="Earliest check-in date across all rooms"
-    )
+    booking_id = fields.Many2one(
+        'room.booking', string='Booking Reference', required=True, ondelete='cascade')
+    room_id = fields.Many2one('hotel.room', string='Room', required=True)
 
-    booking_checkout_date = fields.Datetime(
-        string="Booking Check Out",
-        compute='_compute_booking_dates',
-        store=True,
-        help="Latest check-out date across all rooms"
-    )
+    customer_id = fields.Many2one(
+        'res.partner', related='booking_id.partner_id', string='Customer', store=True)
+    booking_state = fields.Selection(
+        related='booking_id.state', string='Booking State', store=True)
+    customer_note = fields.Text(
+        related='booking_id.customer_note', string='Customer Notes')
+    internal_note = fields.Text(
+        related='booking_id.note', string='Internal Notes')
+    booking_name = fields.Char(
+        related='booking_id.name', string='Booking Number', store=True)
 
-    primary_room_id = fields.Many2one(
-        'hotel.room',
-        string="Primary Room",
-        compute='_compute_primary_room_id',
-        store=True,
-        help="Primary room for calendar display"
-    )
+   
 
+    display_name = fields.Char(
+        string='Display Name', compute='_compute_display_name', store=True)
+
+    @api.depends('booking_id.name', 'room_id.name', 'customer_id.name')
+    def _compute_display_name(self):
+        for line in self:
+            line.display_name = f"{line.booking_name} - {line.room_id.name} ({line.customer_id.name})"
+
+    def name_get(self):
+        """Override name_get for better display in calendar"""
+        result = []
+        for line in self:
+            name = f"{line.booking_name} - {line.room_id.name}"
+            if line.customer_id:
+                name += f" ({line.customer_id.name})"
+            result.append((line.id, name))
+        return result
     # NEW: Duration calculation based on booking dates
     @api.depends('checkin_date', 'checkout_date')
     def _compute_duration(self):
