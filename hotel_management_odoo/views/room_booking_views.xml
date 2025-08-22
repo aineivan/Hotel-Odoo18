@@ -335,24 +335,24 @@
         </field>
     </record>
     
-    <!-- Room Booking Line Calendar View (fixed) -->
-    <record id="room_booking_line_view_calendar" model="ir.ui.view">
-        <field name="name">room.booking.line.view.calendar</field>
-        <field name="model">room.booking.line</field>
-        <field name="arch" type="xml">
-            <calendar string="Room Calendar (All Rooms)"
-                      date_start="checkin_date"
-                      date_stop="checkout_date"
-                      color="room_id"
-                      event_open_popup="true"
-                      quick_add="false">
-                <field name="room_id"/>
-                <field name="booking_id"/>
-                <field name="state"/>
-                <field name="physical_room_code"/>
-            </calendar>
-        </field>
-    </record>
+<!-- Room Booking Line Calendar View -->
+<record id="room_booking_view_calendar" model="ir.ui.view">
+    <field name="name">room.booking.view.calendar</field>
+    <field name="model">room.booking</field>
+    <field name="arch" type="xml">
+        <calendar string="Bookings Calendar"
+                 date_start="checkin_date"
+                 date_stop="checkout_date"
+                 color="state"
+                 event_open_popup="true"
+                 quick_add="false">
+            <field name="name"/>
+            <field name="partner_id"/>
+            <field name="state"/>
+            <field name="room_line_ids"/>
+        </calendar>
+    </field>
+</record>
 
     <!-- Update Action to include calendar -->
     <record id="room_booking_action" model="ir.actions.act_window">
