@@ -351,9 +351,11 @@
             <field name="partner_id"/>
             <field name="state"/>
             <field name="room_names"/>
+            <field name="note"/>  
         </calendar>
     </field>
 </record>
+
 
     <!-- Update Action to include calendar -->
     <record id="room_booking_action" model="ir.actions.act_window">
