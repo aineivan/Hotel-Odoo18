@@ -74,7 +74,7 @@
                             <!-- Make checkin/checkout dates visible and required -->
                             <field name="checkin_date" required="1"/>
                             <field name="checkout_date" required="1"/>
-                            <feild name="source" />
+                            <field name="source" />
                             <field name="need_service"
                                    invisible=" state not in ['check_in']"/>
                             <field name="need_fleet"
@@ -336,26 +336,29 @@
         </field>
     </record>
     
-<!-- Room Booking Line Calendar View -->
-<record id="room_booking_view_calendar" model="ir.ui.view">
-    <field name="name">room.booking.view.calendar</field>
-    <field name="model">room.booking</field>
-    <field name="arch" type="xml">
-        <calendar string="Bookings Calendar"
-                 date_start="checkin_date"
-                 date_stop="checkout_date"
-                 color="state"
-                 event_open_popup="true"
-                 quick_add="false">
-            <field name="name"/>
-            <field name="partner_id"/>
-            <field name="state"/>
-            <field name="room_names"/>
-            <field name="note"/>  
-        </calendar>
-    </field>
-</record>
-
+    <!-- Room Booking Calendar View - Enhanced -->
+    <record id="room_booking_view_calendar" model="ir.ui.view">
+        <field name="name">room.booking.view.calendar</field>
+        <field name="model">room.booking</field>
+        <field name="arch" type="xml">
+            <calendar string="Hotel Bookings Calendar"
+                     date_start="checkin_date"
+                     date_stop="checkout_date"
+                     color="state"
+                     event_open_popup="true"
+                     quick_add="false"
+                     mode="month">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="state"/>
+                <field name="room_names"/>
+                <field name="customer_note"/>
+                <field name="note"/>
+                <field name="source"/>
+                <field name="duration"/>
+            </calendar>
+        </field>
+    </record>
 
     <!-- Update Action to include calendar -->
     <record id="room_booking_action" model="ir.actions.act_window">
@@ -370,8 +373,6 @@
         </field>
     </record>
    
-
-    
     <!-- Reservation menu -->
     <menuitem id="room_booking_menu" name="Reservation" sequence="10"
               parent="hotel_management_menu_root"
