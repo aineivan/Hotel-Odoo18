@@ -349,6 +349,8 @@
                 <field name="partner_id"/>
                 <field name="state"/>
                 <field name="room_names"/>
+                <field name="note"/>
+                <field name="customer_note"/>
             </calendar>
         </field>
     </record>
