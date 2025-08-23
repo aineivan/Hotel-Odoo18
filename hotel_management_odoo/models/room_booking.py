@@ -329,7 +329,7 @@ class RoomBooking(models.Model):
             ])
 
             if all_affected_rooms:
-                all_affected_rooms.recompute(['status', 'is_room_avail'])
+                all_affected_rooms._invalidate_cache(['status', 'is_room_avail'])
                 all_affected_rooms._compute_status()
 
         return result
@@ -682,7 +682,7 @@ class RoomBooking(models.Model):
         # Force recomputation of status for all affected rooms
         if all_affected_rooms:
             # Clear any cached values first
-            all_affected_rooms.recompute(['status', 'is_room_avail'])
+            all_affected_rooms._invalidate_cache(['status', 'is_room_avail'])
 
             # Trigger the status computation
             all_affected_rooms._compute_status()
