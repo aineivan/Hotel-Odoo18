@@ -612,8 +612,97 @@ class RoomBooking(models.Model):
                             'product_type': product_type}
         return booking_dict
 
+       
+
+    def _update_room_statuses_after_state_change(self):
+        """
+        Enhanced room status update that properly handles different configurations
+        of the same physical room
+        """
+        if not self.room_line_ids:
+            return
+
+        # Collect all physical room codes from this booking
+        physical_room_codes = set()
+        booked_room_ids = set()  # Track exact room configurations that are booked
+        
+        for room_line in self.room_line_ids:
+            if room_line.room_id.physical_room_code:
+                physical_room_codes.add(room_line.room_id.physical_room_code)
+                if self.state in ['reserved', 'check_in']:
+                    booked_room_ids.add(room_line.room_id.id)
+
+        if not physical_room_codes:
+            return
+
+        # Find ALL room configurations for these physical rooms
+        all_affected_rooms = self.env['hotel.room'].search([
+            ('physical_room_code', 'in', list(physical_room_codes))
+        ])
+
+        if not all_affected_rooms:
+            return
+
+        # Clear cached values
+        all_affected_rooms.invalidate_recordset(['status', 'is_room_avail'])
+
+        # Update each room individually with proper logic
+        for room in all_affected_rooms:
+            self._update_single_room_status(room, booked_room_ids)
+
+    def _update_single_room_status(self, room, currently_booked_room_ids):
+        """
+        Update status for a single room based on booking state and physical room conflicts
+        """
+        # Check if room is under maintenance
+        if room.is_unavailable_for_maintenance:
+            room.write({
+                'status': 'maintenance',
+                'is_room_avail': False
+            })
+            return
+
+        # Check if THIS specific room configuration is currently booked
+        is_this_room_booked = self.env['room.booking.line'].search_count([
+            ('room_id', '=', room.id),
+            ('booking_id.state', 'in', ['reserved', 'check_in']),
+            ('checkin_date', '<=', fields.Datetime.now()),
+            ('checkout_date', '>', fields.Datetime.now()),
+        ]) > 0
+
+        if is_this_room_booked:
+            # This exact configuration is booked - show as reserved
+            room.write({
+                'status': 'reserved',
+                'is_room_avail': False
+            })
+            return
+
+        # Check if the physical room is booked with a DIFFERENT configuration
+        is_physical_room_booked = self.env['room.booking.line'].search_count([
+            ('room_id.physical_room_code', '=', room.physical_room_code),
+            ('room_id', '!=', room.id),  # Different configuration
+            ('booking_id.state', 'in', ['reserved', 'check_in']),
+            ('checkin_date', '<=', fields.Datetime.now()),
+            ('checkout_date', '>', fields.Datetime.now()),
+        ]) > 0
+
+        if is_physical_room_booked:
+            # Physical room is occupied by different configuration - show as unavailable
+            room.write({
+                'status': 'unavailable',
+                'is_room_avail': False
+            })
+        else:
+            # Room is completely free - show as available
+            room.write({
+                'status': 'available',
+                'is_room_avail': True
+            })
+
+    # Enhanced action_reserve method with better status handling
     def action_reserve(self):
-        """Button Reserve Function - ENHANCED with physical room checking and status updates"""
+        """Enhanced reservation method with proper status differentiation"""
         if self.state == 'reserved':
             message = _("Room Already Reserved.")
             return {
@@ -629,19 +718,19 @@ class RoomBooking(models.Model):
         if not self.room_line_ids:
             raise ValidationError(_("Please Enter Room Details"))
 
-        # NEW: Check availability for all selected rooms
+        # Enhanced availability check with detailed conflict reporting
         for room_line in self.room_line_ids:
             if room_line.room_id.is_unavailable_for_maintenance:
                 raise ValidationError(
-                    _("The room '%s' is currently unavailable for maintenance and cannot be reserved.") % room_line.room_id.display_name_full)
+                    _("The room '%s' is currently unavailable for maintenance and cannot be reserved.") 
+                    % (room_line.room_id.display_name_full if hasattr(room_line.room_id, 'display_name_full') else room_line.room_id.display_name))
 
             if not room_line.room_id.check_room_availability(
                     self.checkin_date, self.checkout_date, self.id):
 
-                # Find conflicting bookings for better error message
+                # Find which specific configuration is conflicting
                 conflicting_bookings = self.env['room.booking.line'].search([
-                    ('room_id.physical_room_code', '=',
-                    room_line.room_id.physical_room_code),
+                    ('room_id.physical_room_code', '=', room_line.room_id.physical_room_code),
                     ('booking_id.state', 'in', ['reserved', 'check_in']),
                     ('checkin_date', '<', self.checkout_date),
                     ('checkout_date', '>', self.checkin_date),
@@ -650,14 +739,16 @@ class RoomBooking(models.Model):
 
                 conflict_details = []
                 for booking in conflicting_bookings:
+                    room_desc = booking.room_id.display_name_full if hasattr(booking.room_id, 'display_name_full') else booking.room_id.display_name
                     conflict_details.append(
-                        f"Booking {booking.booking_id.name} - {booking.room_id.display_name_full} "
+                        f"Booking {booking.booking_id.name} - {room_desc} "
                         f"({booking.checkin_date.strftime('%Y-%m-%d')} to {booking.checkout_date.strftime('%Y-%m-%d')})"
                     )
 
                 raise ValidationError(
                     _("Physical room '%s' is not available for the selected dates "
                     "(%s to %s).\n\nConflicting bookings:\n%s\n\n"
+                    "The physical room is already booked with a different configuration. "
                     "Please choose different dates or another room.") % (
                         room_line.room_id.physical_room_code,
                         self.checkin_date.strftime('%Y-%m-%d'),
@@ -665,10 +756,10 @@ class RoomBooking(models.Model):
                         '\n'.join(conflict_details)
                     ))
 
-        # Update booking state first
+        # Reserve the booking
         self.write({"state": "reserved"})
 
-        # IMPROVED: Collect ALL physical room codes and update statuses in batch
+        # Update room statuses with enhanced logic
         self._update_room_statuses_after_state_change()
 
         return {
@@ -676,68 +767,41 @@ class RoomBooking(models.Model):
             'tag': 'display_notification',
             'params': {
                 'type': 'success',
-                'message': "Rooms reserved Successfully!",
+                'message': "Rooms reserved successfully! Other configurations of the same physical rooms are now unavailable.",
                 'next': {'type': 'ir.actions.act_window_close'},
             }
         }
 
-    def _update_room_statuses_after_state_change(self):
-        """Helper method to update room statuses for all affected physical rooms"""
-        if not self.room_line_ids:
-            return
-
-        # Collect all physical room codes from this booking
+    def action_cancel(self):
+        """Enhanced cancel method with proper status restoration"""
+        # Store physical room codes before canceling
         physical_room_codes = set()
         for room_line in self.room_line_ids:
             if room_line.room_id.physical_room_code:
                 physical_room_codes.add(room_line.room_id.physical_room_code)
 
-        if not physical_room_codes:
-            return
-
-        # Find ALL room configurations for these physical rooms
-        all_affected_rooms = self.env['hotel.room'].search([
-            ('physical_room_code', 'in', list(physical_room_codes))
-        ])
-
-        # Force recomputation of status for all affected rooms
-        if all_affected_rooms:
-            # Clear any cached values first
-            all_affected_rooms._invalidate_cache(['status', 'is_room_avail'])
-
-            # Trigger the status computation
-            all_affected_rooms._compute_status()
-
-            # Additional explicit status update to ensure consistency
-            for room in all_affected_rooms:
-                # Check if this physical room is currently booked
-                is_booked = self.env['room.booking.line'].search_count([
-                    ('room_id.physical_room_code', '=', room.physical_room_code),
-                    ('booking_id.state', 'in', ['reserved', 'check_in']),
-                    ('checkin_date', '<=', fields.Datetime.now()),
-                    ('checkout_date', '>', fields.Datetime.now()),
-                ]) > 0
-
-                if is_booked:
-                    room.write({
-                        'status': 'reserved',
-                        'is_room_avail': False
-                    })
-                else:
-                    # Check for maintenance or other unavailable states
-                    if not room.is_unavailable_for_maintenance:
-                        room.write({
-                            'status': 'available',
-                            'is_room_avail': True
-                        })
-                        
-    def action_cancel(self):
-        """Cancel reservation and refresh room statuses"""
-        # Cancel the booking first
+        # Cancel the booking
         self.write({"state": "cancel"})
 
-        # Update room statuses for all affected physical rooms
-        self._update_room_statuses_after_state_change()
+        # Update ALL configurations of affected physical rooms
+        if physical_room_codes:
+            all_affected_rooms = self.env['hotel.room'].search([
+                ('physical_room_code', 'in', list(physical_room_codes))
+            ])
+            
+            for room in all_affected_rooms:
+                self._update_single_room_status(room, set())
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': 'success',
+                'message': "Booking canceled successfully! Room configurations are now available again.",
+                'next': {'type': 'ir.actions.act_window_close'},
+            }
+        }                    
+    
 
     def action_maintenance_request(self):
         """
