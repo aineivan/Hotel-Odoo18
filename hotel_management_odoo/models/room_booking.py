@@ -306,9 +306,30 @@ class RoomBooking(models.Model):
     def _onchange_booking_dates(self):
         """When booking dates change, update all room lines"""
         if self.checkin_date and self.checkout_date:
+            # Update dates for all existing room lines
             for line in self.room_line_ids:
                 line.checkin_date = self.checkin_date
                 line.checkout_date = self.checkout_date
+
+            # Also trigger recomputation of duration and prices
+            self.room_line_ids._compute_duration()
+            self.room_line_ids._compute_price_subtotal()
+
+    def write(self, vals):
+        """Override write to sync dates to room lines when booking dates change"""
+        result = super().write(vals)
+
+        # If checkin or checkout dates are updated, sync to all room lines
+        if 'checkin_date' in vals or 'checkout_date' in vals:
+            for booking in self:
+                if booking.checkin_date and booking.checkout_date:
+                    # Update all room line dates
+                    booking.room_line_ids.write({
+                        'checkin_date': booking.checkin_date,
+                        'checkout_date': booking.checkout_date,
+                    })
+
+        return result
 
     def unlink(self):
         """Override unlink to free up rooms when reservation is deleted"""
