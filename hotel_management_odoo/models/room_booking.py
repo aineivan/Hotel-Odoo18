@@ -720,7 +720,7 @@ class RoomBooking(models.Model):
 
                 if is_booked:
                     room.write({
-                        'status': 'booked',
+                        'status': 'reserved',
                         'is_room_avail': False
                     })
                 else:
