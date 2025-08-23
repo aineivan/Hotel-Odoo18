@@ -312,19 +312,27 @@ class RoomBooking(models.Model):
 
     def unlink(self):
         """Override unlink to free up rooms when reservation is deleted"""
+        # Collect physical room codes before deletion
+        physical_room_codes = set()
         for booking in self:
-            if booking.room_line_ids:
-                for room_line in booking.room_line_ids:
-                    # NEW: Free up all rooms with same physical_room_code
-                    same_physical_rooms = self.env['hotel.room'].search([
-                        ('physical_room_code', '=',
-                         room_line.room_id.physical_room_code)
-                    ])
-                    same_physical_rooms.write({
-                        'status': 'available',
-                        'is_room_avail': True
-                    })
-        return super().unlink()
+            for room_line in booking.room_line_ids:
+                if room_line.room_id.physical_room_code:
+                    physical_room_codes.add(room_line.room_id.physical_room_code)
+
+        # Call parent unlink first
+        result = super().unlink()
+
+        # Update statuses for all affected physical rooms after deletion
+        if physical_room_codes:
+            all_affected_rooms = self.env['hotel.room'].search([
+                ('physical_room_code', 'in', list(physical_room_codes))
+            ])
+
+            if all_affected_rooms:
+                all_affected_rooms.invalidate_cache(['status', 'is_room_avail'])
+                all_affected_rooms._compute_status()
+
+        return result
 
     @api.depends('room_line_ids.checkin_date', 'room_line_ids.checkout_date')
     def _compute_booking_dates(self):
@@ -639,17 +647,8 @@ class RoomBooking(models.Model):
         # Update booking state first
         self.write({"state": "reserved"})
 
-        # FIXED: Trigger status recomputation for all affected physical rooms
-        physical_room_codes = set()
-        for room_line in self.room_line_ids:
-            physical_room_codes.add(room_line.room_id.physical_room_code)
-
-        # Recompute status for all room configurations of affected physical rooms
-        for physical_code in physical_room_codes:
-            affected_rooms = self.env['hotel.room'].search([
-                ('physical_room_code', '=', physical_code)
-            ])
-            affected_rooms._compute_status()
+        # IMPROVED: Collect ALL physical room codes and update statuses in batch
+        self._update_room_statuses_after_state_change()
 
         return {
             'type': 'ir.actions.client',
@@ -661,25 +660,63 @@ class RoomBooking(models.Model):
             }
         }
 
+    def _update_room_statuses_after_state_change(self):
+        """Helper method to update room statuses for all affected physical rooms"""
+        if not self.room_line_ids:
+            return
 
+        # Collect all physical room codes from this booking
+        physical_room_codes = set()
+        for room_line in self.room_line_ids:
+            if room_line.room_id.physical_room_code:
+                physical_room_codes.add(room_line.room_id.physical_room_code)
 
+        if not physical_room_codes:
+            return
+
+        # Find ALL room configurations for these physical rooms
+        all_affected_rooms = self.env['hotel.room'].search([
+            ('physical_room_code', 'in', list(physical_room_codes))
+        ])
+
+        # Force recomputation of status for all affected rooms
+        if all_affected_rooms:
+            # Clear any cached values first
+            all_affected_rooms.invalidate_cache(['status', 'is_room_avail'])
+
+            # Trigger the status computation
+            all_affected_rooms._compute_status()
+
+            # Additional explicit status update to ensure consistency
+            for room in all_affected_rooms:
+                # Check if this physical room is currently booked
+                is_booked = self.env['room.booking.line'].search_count([
+                    ('room_id.physical_room_code', '=', room.physical_room_code),
+                    ('booking_id.state', 'in', ['reserved', 'check_in']),
+                    ('checkin_date', '<=', fields.Datetime.now()),
+                    ('checkout_date', '>', fields.Datetime.now()),
+                ]) > 0
+
+                if is_booked:
+                    room.write({
+                        'status': 'booked',
+                        'is_room_avail': False
+                    })
+                else:
+                    # Check for maintenance or other unavailable states
+                    if not room.is_unavailable_for_maintenance:
+                        room.write({
+                            'status': 'available',
+                            'is_room_avail': True
+                        })
+                        
     def action_cancel(self):
         """Cancel reservation and refresh room statuses"""
         # Cancel the booking first
         self.write({"state": "cancel"})
 
-        # FIXED: Trigger status recomputation for all affected physical rooms
-        if self.room_line_ids:
-            physical_room_codes = set()
-            for room_line in self.room_line_ids:
-                physical_room_codes.add(room_line.room_id.physical_room_code)
-
-            # Recompute status for all room configurations of affected physical rooms
-            for physical_code in physical_room_codes:
-                affected_rooms = self.env['hotel.room'].search([
-                    ('physical_room_code', '=', physical_code)
-                ])
-                affected_rooms._compute_status()
+        # Update room statuses for all affected physical rooms
+        self._update_room_statuses_after_state_change()
 
     def action_maintenance_request(self):
         """
@@ -734,18 +771,8 @@ class RoomBooking(models.Model):
         # Update booking state first
         self.write({"state": "check_out", "is_checkin": False})
 
-        # FIXED: Trigger status recomputation for all affected physical rooms
-        if self.room_line_ids:
-            physical_room_codes = set()
-            for room_line in self.room_line_ids:
-                physical_room_codes.add(room_line.room_id.physical_room_code)
-
-            # Recompute status for all room configurations of affected physical rooms
-            for physical_code in physical_room_codes:
-                affected_rooms = self.env['hotel.room'].search([
-                    ('physical_room_code', '=', physical_code)
-                ])
-                affected_rooms._compute_status()
+        # Update room statuses for all affected physical rooms
+        self._update_room_statuses_after_state_change()
 
         return {
             'type': 'ir.actions.client',
@@ -810,17 +837,8 @@ class RoomBooking(models.Model):
         # Update booking state first
         self.write({"state": "check_in", "is_checkin": True})
 
-        # FIXED: Trigger status recomputation for all affected physical rooms
-        physical_room_codes = set()
-        for room_line in self.room_line_ids:
-            physical_room_codes.add(room_line.room_id.physical_room_code)
-
-        # Recompute status for all room configurations of affected physical rooms
-        for physical_code in physical_room_codes:
-            affected_rooms = self.env['hotel.room'].search([
-                ('physical_room_code', '=', physical_code)
-            ])
-            affected_rooms._compute_status()
+        # Update room statuses for all affected physical rooms
+        self._update_room_statuses_after_state_change()
 
         return {
             'type': 'ir.actions.client',
