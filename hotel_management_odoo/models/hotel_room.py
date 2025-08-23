@@ -114,42 +114,50 @@ class HotelRoom(models.Model):
 
     @api.depends('is_unavailable_for_maintenance')
     def _compute_status(self):
-        """FIXED: Computes the status of each room configuration based on physical room bookings."""
+        """FIXED: Computes the status of ALL room configurations based on ALL physical room bookings."""
+        # First, get ALL currently booked physical rooms across the entire hotel
+        all_active_bookings = self.env['room.booking.line'].search([
+            ('booking_id.state', 'in', ['reserved', 'check_in']),
+            ('checkout_date', '>', fields.Datetime.now())
+        ])
+
+        # Get physical room codes of ALL booked rooms
+        all_booked_physical_rooms = set()
+        booked_configurations = {}  # Track which specific configs are booked and their status
+
+        for booking in all_active_bookings:
+            physical_code = booking.room_id.physical_room_code
+            all_booked_physical_rooms.add(physical_code)
+
+            # Track the status of each booked configuration
+            if booking.room_id.id not in booked_configurations:
+                booked_configurations[booking.room_id.id] = booking.booking_id.state
+
+        # Now check each room
         for room in self:
             if room.is_unavailable_for_maintenance:
                 room.status = 'unavailable'
                 room.is_room_avail = False
                 continue
 
-            # Find active bookings for this physical room
-            active_bookings = self.env['room.booking.line'].search([
-                ('room_id.physical_room_code', '=', room.physical_room_code),
-                ('booking_id.state', 'in', ['reserved', 'check_in']),
-                ('checkout_date', '>', fields.Datetime.now())
-            ])
-
-            if active_bookings:
-                # Check if this specific room configuration is booked
-                booked_directly = active_bookings.filtered(
-                    lambda b: b.room_id.id == room.id
-                )
-
-                if booked_directly:
+            # Check if this physical room is booked (any configuration)
+            if room.physical_room_code in all_booked_physical_rooms:
+                # Check if this specific configuration is the one that's booked
+                if room.id in booked_configurations:
                     # This specific configuration is booked
-                    if any(booking.booking_id.state == 'check_in' for booking in booked_directly):
+                    if booked_configurations[room.id] == 'check_in':
                         room.status = 'occupied'
                     else:
                         room.status = 'reserved'
-                    room.is_room_avail = False
                 else:
-                    # Another configuration of the same physical room is booked
+                    # Another configuration of this physical room is booked
                     room.status = 'unavailable'
-                    room.is_room_avail = False
+
+                room.is_room_avail = False
             else:
-                # No active bookings for this physical room
+                # This physical room is not booked at all
                 room.status = 'available'
                 room.is_room_avail = True
-
     def check_room_availability(self, checkin_date, checkout_date, exclude_booking_id=None):
         """
         FIXED: Check if this physical room is available for the given date range

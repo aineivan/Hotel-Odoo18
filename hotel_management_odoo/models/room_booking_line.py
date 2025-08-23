@@ -200,6 +200,26 @@ class RoomBookingLine(models.Model):
                         self.booking_id.checkout_date.strftime('%Y-%m-%d'),
                         '\n'.join(conflict_details)
                     ))
+            
+    @api.onchange('booking_id', 'room_id')
+    def _onchange_booking_id_room_id(self):
+        """Prevent selecting duplicate physical rooms by updating domain"""
+        if self.booking_id:
+            # Collect physical room codes already chosen in this booking
+            taken_physical_codes = [
+                line.room_id.physical_room_code
+                for line in self.booking_id.room_line_ids
+                if line.room_id and line != self
+            ]
+            return {
+                'domain': {
+                    'room_id': [
+                        ('status', '=', 'available'),
+                        ('physical_room_code', 'not in', taken_physical_codes)
+                    ]
+                }
+            }
+
 
     @api.model
     def create(self, vals):
@@ -262,3 +282,4 @@ class RoomBookingLine(models.Model):
                             )
 
         return super().write(vals)
+    
