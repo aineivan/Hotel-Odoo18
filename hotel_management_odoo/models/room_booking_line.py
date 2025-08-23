@@ -20,7 +20,7 @@ class RoomBookingLine(models.Model):
                                  help="Indicates the Booking",
                                  ondelete="cascade")
 
-    # INHERITED FROM BOOKING: These are computed from booking level
+    # INHERITED FROM BOOKING
     checkin_date = fields.Datetime(string="Check In",
                                    related='booking_id.checkin_date',
                                    store=True, readonly=True,
@@ -35,7 +35,7 @@ class RoomBookingLine(models.Model):
                               required=True,
                               domain="[('status', '=', 'available')]")
 
-    # NEW: Physical room identification
+    # Physical room identification
     physical_room_code = fields.Char(related='room_id.physical_room_code',
                                      store=True, readonly=True,
                                      string="Physical Room")
@@ -103,7 +103,6 @@ class RoomBookingLine(models.Model):
     def _compute_price_subtotal(self):
         """Compute the amounts of the room booking line."""
         for line in self:
-            # Skip if essential data is missing
             if not line.currency_id or not line.uom_qty or not line.price_unit:
                 line.price_subtotal = 0.0
                 line.price_total = 0.0
@@ -111,7 +110,6 @@ class RoomBookingLine(models.Model):
                 continue
 
             try:
-                # Ensure currency has proper rounding
                 if not line.currency_id.rounding or line.currency_id.rounding <= 0:
                     line.currency_id.rounding = 0.01  # Default to 0.01 if invalid
 
@@ -124,7 +122,6 @@ class RoomBookingLine(models.Model):
                 line.price_tax = line.price_total - line.price_subtotal
 
             except Exception as e:
-                # Fallback calculation if tax computation fails
                 line.price_subtotal = line.price_unit * line.uom_qty
                 line.price_tax = 0.0
                 line.price_total = line.price_subtotal
@@ -144,8 +141,6 @@ class RoomBookingLine(models.Model):
             },
         )
 
-
-
     @api.onchange('room_id')
     def _onchange_room_id(self):
         """When room changes, validate availability and check for duplicates"""
@@ -156,8 +151,9 @@ class RoomBookingLine(models.Model):
         if self.booking_id and self.booking_id.room_line_ids:
             existing_physical_codes = []
             for line in self.booking_id.room_line_ids:
-                if line.id != self.id and line.room_id and line.room_id.physical_room_code:
-                    existing_physical_codes.append(line.room_id.physical_room_code)
+                if line != self and line.room_id and line.room_id.physical_room_code:
+                    existing_physical_codes.append(
+                        line.room_id.physical_room_code)
 
             if self.room_id.physical_room_code in existing_physical_codes:
                 return {
@@ -173,16 +169,14 @@ class RoomBookingLine(models.Model):
 
         # Then check availability if booking dates exist
         if self.room_id and self.booking_id.checkin_date and self.booking_id.checkout_date:
-            # Check if this physical room is available for the booking dates
             if not self.room_id.check_room_availability(
                 self.booking_id.checkin_date,
                 self.booking_id.checkout_date,
                 self.booking_id.id
             ):
-                # Find conflicting bookings for better error message
                 conflicting_bookings = self.env['room.booking.line'].search([
                     ('room_id.physical_room_code', '=',
-                    self.room_id.physical_room_code),
+                     self.room_id.physical_room_code),
                     ('booking_id.state', 'in', ['reserved', 'check_in']),
                     ('checkin_date', '<', self.booking_id.checkout_date),
                     ('checkout_date', '>', self.booking_id.checkin_date),
@@ -199,35 +193,31 @@ class RoomBookingLine(models.Model):
 
                 raise ValidationError(
                     _("Physical room '%s' is not available for the selected dates "
-                    "(%s to %s).\n\nConflicting bookings:\n%s\n\n"
-                    "Please choose different dates or another room.") % (
+                      "(%s to %s).\n\nConflicting bookings:\n%s\n\n"
+                      "Please choose different dates or another room.") % (
                         self.room_id.physical_room_code,
                         self.booking_id.checkin_date.strftime('%Y-%m-%d'),
                         self.booking_id.checkout_date.strftime('%Y-%m-%d'),
                         '\n'.join(conflict_details)
                     ))
 
-
     @api.model
     def create(self, vals):
         """Override create to validate no duplicate physical rooms"""
         line = super().create(vals)
 
-        # Check for duplicate physical rooms in the same booking
         if line.room_id and line.booking_id:
             duplicate_lines = line.booking_id.room_line_ids.filtered(
-                lambda l: l.id != line.id and
+                lambda l: l != line and
                 l.room_id.physical_room_code == line.room_id.physical_room_code
             )
-
             if duplicate_lines:
                 raise ValidationError(
                     _("Physical Room '%s' is already selected in this booking!\n\n"
-                    "You cannot book the same physical room multiple times.")
+                      "You cannot book the same physical room multiple times.")
                     % line.room_id.physical_room_code
                 )
 
-        # Validate availability after creation
         if line.room_id and line.booking_id.checkin_date and line.booking_id.checkout_date:
             if not line.room_id.check_room_availability(
                 line.booking_id.checkin_date,
@@ -236,12 +226,11 @@ class RoomBookingLine(models.Model):
             ):
                 raise ValidationError(
                     _("Physical room '%s' is not available for the selected dates. "
-                    "Please choose different dates or another room.")
+                      "Please choose different dates or another room.")
                     % line.room_id.physical_room_code
                 )
 
         return line
-
 
     def write(self, vals):
         """Override write to validate no duplicate physical rooms when room changes"""
@@ -249,21 +238,17 @@ class RoomBookingLine(models.Model):
             for line in self:
                 new_room = self.env['hotel.room'].browse(vals['room_id'])
                 if new_room and line.booking_id:
-
-                    # Check for duplicates
                     duplicate_lines = line.booking_id.room_line_ids.filtered(
-                        lambda l: l.id != line.id and
+                        lambda l: l != line and
                         l.room_id.physical_room_code == new_room.physical_room_code
                     )
-
                     if duplicate_lines:
                         raise ValidationError(
                             _("Physical Room '%s' is already selected in this booking!\n\n"
-                            "You cannot book the same physical room multiple times.")
+                              "You cannot book the same physical room multiple times.")
                             % new_room.physical_room_code
                         )
 
-                    # Check availability
                     if (line.booking_id.checkin_date and line.booking_id.checkout_date):
                         if not new_room.check_room_availability(
                             line.booking_id.checkin_date,
@@ -272,7 +257,7 @@ class RoomBookingLine(models.Model):
                         ):
                             raise ValidationError(
                                 _("Physical room '%s' is not available for the selected dates. "
-                                "Please choose different dates or another room.")
+                                  "Please choose different dates or another room.")
                                 % new_room.physical_room_code
                             )
 
