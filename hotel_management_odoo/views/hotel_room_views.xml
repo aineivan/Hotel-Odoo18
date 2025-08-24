@@ -1,79 +1,262 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
-    <!--    Hotel Room tree view-->
+    <!-- Hotel Room tree view - Enhanced -->
     <record id="hotel_room_view_tree" model="ir.ui.view">
         <field name="name">hotel.room.view.tree</field>
         <field name="model">hotel.room</field>
         <field name="arch" type="xml">
-            <list>
+            <list decoration-success="status=='available'" 
+                  decoration-info="status=='reserved'" 
+                  decoration-warning="status=='unavailable'" 
+                  decoration-danger="status=='maintenance'"
+                  decoration-muted="status=='cleaning'">
                 <field name="name"/>
                 <field name="physical_room_code"/>
                 <field name="room_config_code"/>
                 <field name="room_type"/>
                 <field name="num_person"/>
                 <field name="floor_id"/>
-                <field name="list_price"/>
-                <field name="status"/>
-                <field name="is_unavailable_for_maintenance"/>
+                <field name="list_price" widget="monetary"/>
+                <field name="status" widget="badge" 
+                       decoration-success="status=='available'"
+                       decoration-info="status=='reserved'"
+                       decoration-warning="status=='unavailable'"
+                       decoration-danger="status=='maintenance'"
+                       decoration-muted="status=='cleaning'"/>
+                <field name="unavailable_reason" optional="hide"/>
+                <field name="is_unavailable_for_maintenance" widget="boolean_toggle"/>
+                <button name="action_set_maintenance" 
+                        string="Set Maintenance" 
+                        type="object" 
+                        class="btn-warning"
+                        attrs="{'invisible': [('is_unavailable_for_maintenance', '=', True)]}"
+                        icon="fa-wrench"/>
+                <button name="action_clear_maintenance" 
+                        string="Clear Maintenance" 
+                        type="object" 
+                        class="btn-success"
+                        attrs="{'invisible': [('is_unavailable_for_maintenance', '=', False)]}"
+                        icon="fa-check"/>
             </list>
         </field>
     </record>
-    <!--    Hotel Room form view-->
+
+    <!-- Hotel Room kanban view -->
+    <record id="hotel_room_view_kanban" model="ir.ui.view">
+        <field name="name">hotel.room.view.kanban</field>
+        <field name="model">hotel.room</field>
+        <field name="arch" type="xml">
+            <kanban class="o_kanban_mobile" sample="1">
+                <field name="name"/>
+                <field name="room_type"/>
+                <field name="status"/>
+                <field name="list_price"/>
+                <field name="num_person"/>
+                <field name="floor_id"/>
+                <field name="room_image"/>
+                <field name="is_unavailable_for_maintenance"/>
+                <field name="unavailable_reason"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_card oe_kanban_global_click">
+                            <div class="o_kanban_image">
+                                <img t-att-src="kanban_image('hotel.room', 'room_image', record.id.raw_value)" 
+                                     alt="Room Image" class="o_image_64_cover"/>
+                            </div>
+                            <div class="oe_kanban_details">
+                                <div class="o_kanban_record_top">
+                                    <div class="o_kanban_record_headings">
+                                        <strong class="o_kanban_record_title">
+                                            <field name="name"/>
+                                            <t t-if="record.room_type.raw_value">
+                                                (<field name="room_type"/>)
+                                            </t>
+                                        </strong>
+                                        <small class="o_kanban_record_subtitle text-muted">
+                                            <field name="physical_room_code"/>
+                                        </small>
+                                    </div>
+                                    <span class="badge" 
+                                          t-attf-class="badge-#{record.status.raw_value == 'available' ? 'success' : 
+                                                              record.status.raw_value == 'reserved' ? 'primary' :
+                                                              record.status.raw_value == 'unavailable' ? 'warning' :
+                                                              record.status.raw_value == 'maintenance' ? 'danger' : 'secondary'}">
+                                        <field name="status"/>
+                                    </span>
+                                </div>
+                                <div class="o_kanban_record_body">
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <i class="fa fa-users"/> <field name="num_person"/> persons
+                                        </div>
+                                        <div class="col-6">
+                                            <i class="fa fa-building"/> <field name="floor_id"/>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-1">
+                                        <div class="col-12">
+                                            <strong><field name="list_price" widget="monetary"/></strong>/night
+                                        </div>
+                                    </div>
+                                    <t t-if="record.unavailable_reason.raw_value">
+                                        <div class="row mt-1">
+                                            <div class="col-12 text-muted">
+                                                <small><field name="unavailable_reason"/></small>
+                                            </div>
+                                        </div>
+                                    </t>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- Hotel Room calendar view -->
+    <record id="hotel_room_view_calendar" model="ir.ui.view">
+        <field name="name">hotel.room.view.calendar</field>
+        <field name="model">hotel.room</field>
+        <field name="arch" type="xml">
+            <calendar string="Room Schedule" 
+                      date_start="create_date" 
+                      color="status"
+                      quick_add="False"
+                      form_view_id="%(hotel_room_view_form)d">
+                <field name="name"/>
+                <field name="status"/>
+                <field name="room_type"/>
+                <field name="list_price"/>
+            </calendar>
+        </field>
+    </record>
+
+    <!-- Hotel Room form view - Enhanced -->
     <record id="hotel_room_view_form" model="ir.ui.view">
         <field name="name">hotel.room.view.form</field>
         <field name="model">hotel.room</field>
         <field name="arch" type="xml">
             <form string="Hotel Room">
                 <header>
-                    <field name="status" widget="statusbar" readonly="1"/>
+                    <button name="action_set_maintenance" 
+                            string="Set Maintenance" 
+                            type="object" 
+                            class="btn-warning"
+                            attrs="{'invisible': [('is_unavailable_for_maintenance', '=', True)]}"
+                            confirm="Are you sure you want to set this room for maintenance?"/>
+                    <button name="action_clear_maintenance" 
+                            string="Clear Maintenance" 
+                            type="object" 
+                            class="btn-success"
+                            attrs="{'invisible': [('is_unavailable_for_maintenance', '=', False)]}"/>
+                    <button name="refresh_status" 
+                            string="Refresh Status" 
+                            type="object" 
+                            class="btn-secondary"/>
+                    <field name="status" widget="statusbar" readonly="1" 
+                           statusbar_colors='{"available":"success","reserved":"primary","unavailable":"warning","maintenance":"danger","cleaning":"info"}'/>
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button class="oe_stat_button" type="action" icon="fa-calendar" disabled="1">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_value">
+                                    <field name="status" readonly="1"/>
+                                </span>
+                                <span class="o_stat_text">Status</span>
+                            </div>
+                        </button>
+                        <button class="oe_stat_button" type="action" icon="fa-users" disabled="1">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_value">
+                                    <field name="num_person"/>
+                                </span>
+                                <span class="o_stat_text">Max Guests</span>
+                            </div>
+                        </button>
+                    </div>
+                    
                     <field name="room_image" widget="image"
                            class="oe_avatar"
-                           options="{'preview_image': 'room_image'}"/>
+                           options="{'preview_image': 'room_image', 'size': [90, 90]}"/>
+                    
                     <div class="oe_title">
-                        <label for="name" string="Name"/>
+                        <label for="name" string="Room Number"/>
                         <h1>
-                            <field name="name"/>
+                            <field name="name" placeholder="e.g. 404"/>
                         </h1>
                         <h2>
-                            <field name="is_room_avail" invisible="1"/>
+                            <field name="room_type" placeholder="Select room type..."/>
                         </h2>
+                        <field name="is_room_avail" invisible="1"/>
                     </div>
+
+                    <!-- Status Information Alert -->
+                    <div class="alert alert-info" 
+                         attrs="{'invisible': [('unavailable_reason', '=', False)]}">
+                        <strong>Status Information:</strong>
+                        <field name="unavailable_reason" readonly="1"/>
+                    </div>
+
                     <group>
-                        <field name="is_unavailable_for_maintenance" widget="boolean_toggle"/>
+                        <group>
+                            <field name="is_unavailable_for_maintenance" 
+                                   widget="boolean_toggle"
+                                   string="Under Maintenance"/>
+                        </group>
                     </group>
+
                     <notebook>
-                        <page name="information_hotel_room"
-                              string="Information">
+                        <page name="information_hotel_room" string="Room Information">
                             <group>
-                                <group>
+                                <group string="Basic Information">
+                                    <field name="physical_room_code" readonly="1"/>
+                                    <field name="room_config_code" readonly="1"/>
                                     <field name="floor_id" string="Floor"/>
-                                    <field name="user_id" string="Room Manager"/>
-                                    <field name="taxes_ids" widget="many2many_tags" string="Customer Taxes"/>
-                                    <field name="physical_room_code"/>
-                                    <field name="room_config_code"/>
+                                    <field name="user_id" string="Room Manager" readonly="1"/>
                                 </group>
-                                <group>
-                                    <field name="room_type"/>
-                                    <field name="list_price" widget="monetary" string="Rent"/>
-                                    <field name="num_person"/>
+                                <group string="Room Details">
+                                    <field name="list_price" widget="monetary" string="Rate per Night"/>
+                                    <field name="num_person" string="Max Occupancy"/>
                                     <field name="uom_id" invisible="1"/>
-                                    <field name="is_room_avail" readonly="1"/>
+                                    <field name="is_room_avail" readonly="1" string="Currently Available"/>
                                 </group>
                             </group>
-
+                            <group string="Taxes">
+                                <field name="taxes_ids" widget="many2many_tags" string="Customer Taxes"/>
+                            </group>
                         </page>
-                        <page string="Amenities">
+                        
+                        <page string="Amenities" name="amenities">
                             <group>
                                 <field name="room_amenities_ids"
                                        widget="many2many_tags"
-                                       string="Room Amenities"/>
+                                       string="Room Amenities"
+                                       placeholder="Select amenities..."/>
                             </group>
                         </page>
-                        <page string="Descriptions">
-                            <separator string="Description"/>
-                            <field name="description" colspan="4" nolabel="1"/>
+                        
+                        <page string="Description" name="description">
+                            <separator string="Room Description"/>
+                            <field name="description" colspan="4" nolabel="1" 
+                                   placeholder="Enter detailed room description..."/>
+                        </page>
+
+                        <page string="Booking Information" name="booking_info">
+                            <group>
+                                <group string="Availability">
+                                    <field name="display_name_full" readonly="1" string="Full Room Name"/>
+                                </group>
+                            </group>
+                            
+                            <!-- Current Booking Information (you may need to add this as a computed field) -->
+                            <separator string="Current Booking Status"/>
+                            <div class="alert alert-info">
+                                <p>Use the <strong>Refresh Status</strong> button above to update room availability in real-time.</p>
+                                <p>Physical Room Code: <strong><field name="physical_room_code" readonly="1"/></strong></p>
+                                <p>This represents the actual physical room. Multiple configurations may exist for the same physical room.</p>
+                            </div>
                         </page>
                     </notebook>
                 </sheet>
@@ -81,7 +264,38 @@
             </form>
         </field>
     </record>
-    
+
+    <!-- Hotel Room search view -->
+    <record id="hotel_room_view_search" model="ir.ui.view">
+        <field name="name">hotel.room.view.search</field>
+        <field name="model">hotel.room</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name" string="Room Number"/>
+                <field name="physical_room_code"/>
+                <field name="room_type"/>
+                <field name="floor_id"/>
+                <field name="status"/>
+                <separator/>
+                <filter string="Available" name="available" domain="[('status', '=', 'available')]"/>
+                <filter string="Reserved" name="reserved" domain="[('status', '=', 'reserved')]"/>
+                <filter string="Unavailable" name="unavailable" domain="[('status', '=', 'unavailable')]"/>
+                <filter string="Under Maintenance" name="maintenance" domain="[('status', '=', 'maintenance')]"/>
+                <separator/>
+                <filter string="Not Under Maintenance" name="not_maintenance" domain="[('is_unavailable_for_maintenance', '=', False)]"/>
+                <filter string="Under Maintenance" name="is_maintenance" domain="[('is_unavailable_for_maintenance', '=', True)]"/>
+                <separator/>
+                <group expand="0" string="Group By">
+                    <filter string="Room Type" name="group_room_type" domain="[]" context="{'group_by': 'room_type'}"/>
+                    <filter string="Floor" name="group_floor" domain="[]" context="{'group_by': 'floor_id'}"/>
+                    <filter string="Status" name="group_status" domain="[]" context="{'group_by': 'status'}"/>
+                    <filter string="Capacity" name="group_capacity" domain="[]" context="{'group_by': 'num_person'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Server Actions (keep your existing ones) -->
     <record id="server_action_set_room_maintenance" model="ir.actions.server">
         <field name="name">Set Room for Maintenance</field>
         <field name="model_id" ref="model_hotel_room"/>
@@ -89,9 +303,9 @@
         <field name="binding_view_types">list,form</field>
         <field name="state">code</field>
         <field name="code"><![CDATA[
-    for record in records:
-        record.action_set_maintenance()
-    ]]></field>
+for record in records:
+    record.action_set_maintenance()
+        ]]></field>
     </record>
 
     <record id="server_action_clear_room_maintenance" model="ir.actions.server">
@@ -101,25 +315,30 @@
         <field name="binding_view_types">list,form</field>
         <field name="state">code</field>
         <field name="code"><![CDATA[
-    for record in records:
-        record.action_clear_maintenance()
-    ]]></field>
+for record in records:
+    record.action_clear_maintenance()
+        ]]></field>
     </record>
 
-    <!--    Hotel Room menu action-->
+    <!-- Updated Hotel Room menu action with all views -->
     <record id="hotel_room_action" model="ir.actions.act_window">
         <field name="name">Rooms</field>
         <field name="type">ir.actions.act_window</field>
         <field name="res_model">hotel.room</field>
-        <field name="view_mode">list,form</field>
+        <field name="view_mode">kanban,list,form,calendar</field>
+        <field name="search_view_id" ref="hotel_room_view_search"/>
         <field name="context">{'default_is_room_avail':True}</field>
         <field name="help" type="html">
             <p class="oe_view_nocontent_create">
-                No Rooms found ! Let's create one
+                Click to create a new room.
+            </p>
+            <p>
+                Define your hotel rooms with different configurations and track their availability in real-time.
             </p>
         </field>
     </record>
-    <!--Room Menu-->
+
+    <!-- Room Menu (keep your existing menu) -->
     <menuitem id="hotel_room_menu"
               name="Room"
               action="hotel_room_action"
