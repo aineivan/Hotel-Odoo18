@@ -123,8 +123,8 @@
                       date_start="checkin_date" 
                       date_stop="checkout_date"
                       color="room_id"
-                      quick_add="False"
-                      all_day="False"
+                      quick_add="false"
+                      all_day="false"
                       mode="month"
                       event_open_popup="true">
                 <field name="room_id"/>
