@@ -114,21 +114,7 @@
         </field>
     </record>
 
-    <!-- Hotel Room calendar view -->
-    <record id="room_booking_line_view_calendar" model="ir.ui.view">
-        <field name="name">room.booking.line.view.calendar</field>
-        <field name="model">room.booking.line</field>
-        <field name="arch" type="xml">
-            <calendar string="Room Bookings" 
-                      date_start="checkin_date" 
-                      date_stop="checkout_date"
-                      color="booking_id"
-                      mode="month">
-                <field name="booking_id"/>
-                <field name="room_id"/>
-            </calendar>
-        </field>
-    </record>
+   
 
     <!-- Hotel Room form view - Enhanced -->
     <record id="hotel_room_view_form" model="ir.ui.view">
