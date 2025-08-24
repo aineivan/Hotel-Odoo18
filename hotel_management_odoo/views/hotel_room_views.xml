@@ -29,13 +29,13 @@
                         string="Set Maintenance" 
                         type="object" 
                         class="btn-warning"
-                        attrs="{'invisible': [('is_unavailable_for_maintenance', '=', True)]}"
+                        invisible="is_unavailable_for_maintenance == 'True'"
                         icon="fa-wrench"/>
                 <button name="action_clear_maintenance" 
                         string="Clear Maintenance" 
                         type="object" 
                         class="btn-success"
-                        attrs="{'invisible': [('is_unavailable_for_maintenance', '=', False)]}"
+                        invisible="is_unavailable_for_maintenance == 'False'"
                         icon="fa-check"/>
             </list>
         </field>
@@ -143,13 +143,13 @@
                             string="Set Maintenance" 
                             type="object" 
                             class="btn-warning"
-                            attrs="{'invisible': [('is_unavailable_for_maintenance', '=', True)]}"
+                            invisible="is_unavailable_for_maintenance == 'True'"
                             confirm="Are you sure you want to set this room for maintenance?"/>
                     <button name="action_clear_maintenance" 
                             string="Clear Maintenance" 
                             type="object" 
                             class="btn-success"
-                            attrs="{'invisible': [('is_unavailable_for_maintenance', '=', False)]}"/>
+                            invisible="is_unavailable_for_maintenance == 'False'"/>
                     <button name="refresh_status" 
                             string="Refresh Status" 
                             type="object" 
@@ -194,7 +194,7 @@
 
                     <!-- Status Information Alert -->
                     <div class="alert alert-info" 
-                         attrs="{'invisible': [('unavailable_reason', '=', False)]}">
+                         invisible="unavailable_reason == 'False'">
                         <strong>Status Information:</strong>
                         <field name="unavailable_reason" readonly="1"/>
                     </div>
