@@ -119,14 +119,13 @@
         <field name="name">room.booking.line.view.calendar</field>
         <field name="model">room.booking.line</field>
         <field name="arch" type="xml">
-            <calendar string="Room Bookings Schedule" 
-                      date_start="checkin_date" 
-                      date_stop="checkout_date"
-                      color="room_id"
-                      quick_add="false"
-                      all_day="false"
-                      mode="month"
-                      event_open_popup="true">
+            <calendar string="Room Bookings Schedule"
+                    date_start="checkin_date"
+                    date_stop="checkout_date"
+                    color="room_id"
+                    quick_add="false"
+                    all_day="false"
+                    mode="month">
                 <field name="room_id"/>
                 <field name="booking_id"/>
                 <field name="checkin_date"/>
@@ -134,6 +133,7 @@
             </calendar>
         </field>
     </record>
+
 
     <!-- Hotel Room form view - Enhanced -->
     <record id="hotel_room_view_form" model="ir.ui.view">
