@@ -196,10 +196,10 @@
                         <page name="information_hotel_room" string="Room Information">
                             <group>
                                 <group string="Basic Information">
-                                    <field name="physical_room_code" readonly="1"/>
-                                    <field name="room_config_code" readonly="1"/>
+                                    <field name="physical_room_code" />
+                                    <field name="room_config_code" />
                                     <field name="floor_id" string="Floor"/>
-                                    <field name="user_id" string="Room Manager" readonly="1"/>
+                                    <field name="user_id" string="Room Manager" />
                                 </group>
                                 <group string="Room Details">
                                     <field name="list_price" widget="monetary" string="Rate per Night"/>
@@ -231,7 +231,7 @@
                         <page string="Booking Information" name="booking_info">
                             <group>
                                 <group string="Availability">
-                                    <field name="display_name_full" readonly="1" string="Full Room Name"/>
+                                    <field name="display_name_full"  string="Full Room Name"/>
                                 </group>
                             </group>
                             
@@ -239,7 +239,7 @@
                             <separator string="Current Booking Status"/>
                             <div class="alert alert-info">
                                 <p>Use the <strong>Refresh Status</strong> button above to update room availability in real-time.</p>
-                                <p>Physical Room Code: <strong><field name="physical_room_code" readonly="1"/></strong></p>
+                                <p>Physical Room Code: <strong><field name="physical_room_code" /></strong></p>
                                 <p>This represents the actual physical room. Multiple configurations may exist for the same physical room.</p>
                             </div>
                         </page>
