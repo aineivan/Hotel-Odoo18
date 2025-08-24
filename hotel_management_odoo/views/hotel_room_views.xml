@@ -310,7 +310,7 @@ for record in records:
         <field name="name">Rooms</field>
         <field name="type">ir.actions.act_window</field>
         <field name="res_model">hotel.room</field>
-        <field name="view_mode">kanban,list,form,calendar</field>
+        <field name="view_mode">kanban,list,form</field>
         <field name="search_view_id" ref="hotel_room_view_search"/>
         <field name="context">{'default_is_room_avail':True}</field>
         <field name="help" type="html">
