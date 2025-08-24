@@ -123,11 +123,17 @@
                       date_start="checkin_date" 
                       date_stop="checkout_date"
                       color="room_id"
-            >
+                      quick_create="0"
+                      event_limit="5"
+                      mode="month"
+                      event_open_popup="true">
                 <field name="room_id"/>
                 <field name="booking_id"/>
                 <field name="checkin_date"/>
                 <field name="checkout_date"/>
+                <field name="physical_room_code"/>
+                <field name="price_total"/>
+                <field name="state"/>
             </calendar>
         </field>
     </record>
