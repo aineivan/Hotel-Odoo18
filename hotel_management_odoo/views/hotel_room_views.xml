@@ -119,21 +119,13 @@
         <field name="name">room.booking.line.view.calendar</field>
         <field name="model">room.booking.line</field>
         <field name="arch" type="xml">
-            <calendar string="Room Bookings Schedule" 
+            <calendar string="Room Bookings" 
                       date_start="checkin_date" 
                       date_stop="checkout_date"
-                      color="room_id"
-                      quick_create="0"
-                      event_limit="5"
-                      mode="month"
-                      event_open_popup="true">
-                <field name="room_id"/>
+                      color="booking_id"
+                      mode="month">
                 <field name="booking_id"/>
-                <field name="checkin_date"/>
-                <field name="checkout_date"/>
-                <field name="physical_room_code"/>
-                <field name="price_total"/>
-                <field name="state"/>
+                <field name="room_id"/>
             </calendar>
         </field>
     </record>
