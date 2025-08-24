@@ -77,13 +77,11 @@ class HotelRoom(models.Model):
 
     display_name_full = fields.Char(
         string='Full Name', compute='_compute_display_name_full', store=True)
-    
-
 
     status = fields.Selection([
         ('available', 'Available'),
-        ('reserved', 'Reserved'),  
-        ('unavailable', 'Unavailable'),  
+        ('reserved', 'Reserved'),
+        ('unavailable', 'Unavailable'),
         ('maintenance', 'Under Maintenance'),
         ('cleaning', 'Being Cleaned'),
     ], string='Room Status', default='available',
@@ -95,7 +93,6 @@ class HotelRoom(models.Model):
         compute='_compute_unavailable_reason',
         help="Shows why the room is unavailable"
     )
-
 
     @api.depends('status', 'physical_room_code')
     def _compute_unavailable_reason(self):
@@ -114,7 +111,7 @@ class HotelRoom(models.Model):
                 ], limit=1)
 
                 if booked_config:
-                    room.unavailable_reason = f"Physical room booked as {booked_config.room_id.room_type_id.name}"
+                    room.unavailable_reason = f"Physical room booked as {booked_config.room_id.room_type.name}"
                 else:
                     room.unavailable_reason = "Physical room unavailable"
             elif room.status == 'maintenance':
@@ -123,8 +120,6 @@ class HotelRoom(models.Model):
                 room.unavailable_reason = "Room being cleaned"
             else:
                 room.unavailable_reason = ""
-
-
 
     def get_status_color(self):
         """Return color code for room status display"""
@@ -137,43 +132,33 @@ class HotelRoom(models.Model):
         }
         return color_map.get(self.status, 'secondary')
 
-
-
     def can_be_booked(self):
         """Check if this room configuration can be booked"""
         return self.status == 'available' and not self.is_unavailable_for_maintenance
 
-
-
     @api.model
     def search_available_rooms(self, checkin_date, checkout_date, room_type_id=None):
         """
-        Search for rooms that are actually available for booking
-        (not just showing available status)
+        Search for rooms that are actually available for booking for specific dates
         """
-        domain = [('status', '=', 'available')]
+        domain = []
 
         if room_type_id:
-            domain.append(('room_type_id', '=', room_type_id))
+            domain.append(('room_type', '=', room_type_id))
 
-        available_rooms = self.search(domain)
+        # Get all rooms (don't filter by status here as it's computed)
+        all_rooms = self.search(domain)
 
-        # Further filter by actual availability for the dates
-        truly_available = available_rooms.filtered(
+        # Filter by actual availability for the dates
+        available_rooms = all_rooms.filtered(
             lambda r: r.check_room_availability(checkin_date, checkout_date)
         )
 
-        return truly_available
-
-    # Method to get booking details for reserved/unavailable rooms
-
+        return available_rooms
 
     def get_current_booking_info(self):
         """Get information about current booking for this physical room"""
-        if self.status in ['available']:
-            return None
-
-        # Find current booking for this physical room
+        # Find current booking for this physical room that overlaps with now
         current_booking = self.env['room.booking.line'].search([
             ('room_id.physical_room_code', '=', self.physical_room_code),
             ('booking_id.state', 'in', ['reserved', 'check_in']),
@@ -185,14 +170,13 @@ class HotelRoom(models.Model):
             return {
                 'booking_name': current_booking.booking_id.name,
                 'guest_name': current_booking.booking_id.partner_id.name,
-                'room_config': current_booking.room_id.room_type_id.name,
+                'room_config': current_booking.room_id.room_type.name,
                 'checkin': current_booking.checkin_date,
                 'checkout': current_booking.checkout_date,
                 'is_exact_config': current_booking.room_id.id == self.id
             }
 
         return None
-
 
     @api.depends('name', 'room_type.name')
     def _compute_display_name_full(self):
@@ -227,68 +211,69 @@ class HotelRoom(models.Model):
         if self.room_type:
             self.num_person = self.room_type.num_person
 
-
-    @api.depends('physical_room_code')
+    @api.depends('physical_room_code', 'is_unavailable_for_maintenance')
     def _compute_status(self):
         """
-        Enhanced status computation:
-        - Only the EXACT booked room configuration shows 'reserved'
-        - Other configurations of the same physical room show 'unavailable'
-        - Available rooms show 'available'
+        FIXED: Date-aware status computation that only considers current active bookings
+        - Only shows 'reserved'/'unavailable' for bookings that are currently active (overlap with now)
+        - Other configurations remain 'available' if no current conflicts exist
         """
+        current_time = fields.Datetime.now()
+
         for room in self:
             if room.is_unavailable_for_maintenance:
                 room.status = 'maintenance'
                 room.is_room_avail = False
                 continue
 
-            # Check if THIS SPECIFIC room configuration is booked
+            # Check if THIS SPECIFIC room configuration has a currently active booking
             specific_room_booking = self.env['room.booking.line'].search([
                 ('room_id', '=', room.id),  # Exact room configuration match
                 ('booking_id.state', 'in', ['reserved', 'check_in']),
-                ('checkin_date', '<=', fields.Datetime.now()),
-                ('checkout_date', '>', fields.Datetime.now()),
+                ('checkin_date', '<=', current_time),
+                ('checkout_date', '>', current_time),
             ], limit=1)
 
             if specific_room_booking:
-                # This exact configuration is booked
+                # This exact configuration is currently booked
                 room.status = 'reserved'
                 room.is_room_avail = False
             else:
-                # Check if the PHYSICAL room is booked with a different configuration
+                # Check if the PHYSICAL room has a currently active booking with a different configuration
                 physical_room_booking = self.env['room.booking.line'].search([
                     ('room_id.physical_room_code', '=', room.physical_room_code),
                     ('room_id', '!=', room.id),  # Different configuration
                     ('booking_id.state', 'in', ['reserved', 'check_in']),
-                    ('checkin_date', '<=', fields.Datetime.now()),
-                    ('checkout_date', '>', fields.Datetime.now()),
+                    ('checkin_date', '<=', current_time),
+                    ('checkout_date', '>', current_time),
                 ], limit=1)
 
                 if physical_room_booking:
-                    # Physical room is booked but with different configuration
+                    # Physical room is currently booked with different configuration
                     room.status = 'unavailable'
                     room.is_room_avail = False
                 else:
-                    # Room is completely available
+                    # Room is available (no current bookings)
                     room.status = 'available'
                     room.is_room_avail = True
 
-
     def check_room_availability(self, checkin_date, checkout_date, booking_id=None):
         """
-        Enhanced availability check:
-        - Checks if the PHYSICAL room is available for the given dates
-        - Considers all configurations of the same physical room
+        FIXED: Enhanced availability check that properly handles date ranges
+        - Checks if the PHYSICAL room is available for the given date range
+        - Only considers bookings that actually overlap with the requested dates
         """
         self.ensure_one()
 
         if self.is_unavailable_for_maintenance:
             return False
 
-        # Check if ANY configuration of this physical room is booked during the requested period
+        # Check if ANY configuration of this physical room has conflicting bookings
+        # for the specific date range being requested
         conflicting_bookings = self.env['room.booking.line'].search([
             ('room_id.physical_room_code', '=', self.physical_room_code),
             ('booking_id.state', 'in', ['reserved', 'check_in']),
+            # Date overlap check: conflicts if booking starts before our end AND ends after our start
             ('checkin_date', '<', checkout_date),
             ('checkout_date', '>', checkin_date),
         ])
@@ -301,16 +286,44 @@ class HotelRoom(models.Model):
 
         return len(conflicting_bookings) == 0
 
+    def get_booking_conflicts_for_dates(self, checkin_date, checkout_date, exclude_booking_id=None):
+        """
+        NEW: Get detailed information about booking conflicts for specific dates
+        Returns list of conflicting booking details
+        """
+        conflicts = self.env['room.booking.line'].search([
+            ('room_id.physical_room_code', '=', self.physical_room_code),
+            ('booking_id.state', 'in', ['reserved', 'check_in']),
+            ('checkin_date', '<', checkout_date),
+            ('checkout_date', '>', checkin_date),
+        ])
 
+        if exclude_booking_id:
+            conflicts = conflicts.filtered(
+                lambda b: b.booking_id.id != exclude_booking_id)
 
+        conflict_details = []
+        for conflict in conflicts:
+            conflict_details.append({
+                'booking_name': conflict.booking_id.name,
+                'room_config': conflict.room_id.display_name_full,
+                'guest_name': conflict.booking_id.partner_id.name,
+                'checkin_date': conflict.checkin_date,
+                'checkout_date': conflict.checkout_date,
+                'is_same_config': conflict.room_id.id == self.id
+            })
+
+        return conflict_details
 
     def action_set_maintenance(self):
         """Set room for maintenance - button action from form view"""
-        # Check if the physical room has active bookings
+        # Check if the physical room has active bookings that overlap with current time or future
+        current_time = fields.Datetime.now()
         active_bookings = self.env['room.booking.line'].search([
             ('room_id.physical_room_code', '=', self.physical_room_code),
             ('booking_id.state', 'in', ['reserved', 'check_in']),
-            ('checkout_date', '>', fields.Datetime.now())
+            # Any booking that hasn't finished yet
+            ('checkout_date', '>', current_time)
         ])
 
         if active_bookings:

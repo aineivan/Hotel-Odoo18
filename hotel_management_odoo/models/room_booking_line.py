@@ -43,7 +43,7 @@ class RoomBookingLine(models.Model):
         string="Room",
         required=True,
         help="Select specific room configuration",
-        domain="[('status', '=', 'available')]",
+        domain=[],  # Domain will be set dynamically in onchange
     )
 
     # Physical room identifier (read-only mirror from room)
@@ -122,7 +122,6 @@ class RoomBookingLine(models.Model):
         help="If True, then Booking Line will be visible"
     )
 
-    # NEW: Add method to sync dates from booking
     @api.model
     def create(self, vals):
         """Auto-sync dates from booking on create if not provided"""
@@ -142,17 +141,17 @@ class RoomBookingLine(models.Model):
     def write(self, vals):
         """Validate on updates."""
         res = super().write(vals)
-        if 'room_id' in vals or 'booking_id' in vals:
+        if 'room_id' in vals or 'booking_id' in vals or 'checkin_date' in vals or 'checkout_date' in vals:
             for line in self:
                 line._validate_room_selection()
         return res
 
     def _validate_room_selection(self):
-        """Centralized validation for room selection"""
+        """ENHANCED: Centralized validation for room selection with better date handling"""
         if not self.booking_id or not self.room_id:
             return
 
-        # Duplicate check
+        # 1. Check for duplicate physical rooms in the same booking (regardless of dates)
         duplicates = self.booking_id.room_line_ids.filtered(
             lambda l: l != self and l.room_id and
             l.room_id.physical_room_code == self.room_id.physical_room_code
@@ -160,50 +159,54 @@ class RoomBookingLine(models.Model):
         if duplicates:
             raise ValidationError(
                 _("Physical Room '%s' is already selected in this booking!\n\n"
-                  "You cannot book the same physical room multiple times with different configurations.")
+                  "You cannot book the same physical room multiple times with different configurations "
+                  "within the same booking period.")
                 % self.room_id.physical_room_code
             )
 
-        # Availability check
+        # 2. Check availability for the specific dates if dates are set
         if self.checkin_date and self.checkout_date:
             if not self.room_id.check_room_availability(
                 self.checkin_date,
                 self.checkout_date,
                 self.booking_id.id
             ):
-                # Build detailed conflict message
-                conflicting = self.env['room.booking.line'].search([
-                    ('room_id.physical_room_code', '=',
-                     self.room_id.physical_room_code),
-                    ('booking_id.state', 'in', ['reserved', 'check_in']),
-                    ('checkin_date', '<', self.checkout_date),
-                    ('checkout_date', '>', self.checkin_date),
-                    ('booking_id', '!=', self.booking_id.id),
-                ])
-
-                details = []
-                for conflict in conflicting:
-                    try:
-                        details.append(
-                            f"Booking {conflict.booking_id.name} - {getattr(conflict.room_id, 'display_name_full', conflict.room_id.display_name)} "
-                            f"({conflict.checkin_date.strftime('%Y-%m-%d')} to {conflict.checkout_date.strftime('%Y-%m-%d')})"
-                        )
-                    except Exception:
-                        details.append(
-                            f"Booking {conflict.booking_id.name} ({conflict.checkin_date} to {conflict.checkout_date})"
-                        )
-
-                raise ValidationError(
-                    _("Physical room '%s' is not available for the selected dates "
-                      "(%s to %s).\n\nConflicting bookings:\n%s\n\n"
-                      "Please choose different dates or another room.") % (
-                        self.room_id.physical_room_code,
-                        self.checkin_date.strftime('%Y-%m-%d'),
-                        self.checkout_date.strftime('%Y-%m-%d'),
-                        '\n'.join(details) if details else _(
-                            'Unknown conflicts')
-                    )
+                # Get detailed conflict information
+                conflict_details = self.room_id.get_booking_conflicts_for_dates(
+                    self.checkin_date,
+                    self.checkout_date,
+                    exclude_booking_id=self.booking_id.id
                 )
+
+                if conflict_details:
+                    details_str = []
+                    for conflict in conflict_details:
+                        details_str.append(
+                            f"• {conflict['booking_name']} - {conflict['room_config']} "
+                            f"({conflict['checkin_date'].strftime('%Y-%m-%d')} to {conflict['checkout_date'].strftime('%Y-%m-%d')})"
+                        )
+
+                    raise ValidationError(
+                        _("Physical room '%s' is not available for the requested dates "
+                          "(%s to %s).\n\nConflicting bookings:\n%s\n\n"
+                          "The physical room is already booked during this period. "
+                          "Please choose different dates or another room.") % (
+                            self.room_id.physical_room_code,
+                            self.checkin_date.strftime('%Y-%m-%d'),
+                            self.checkout_date.strftime('%Y-%m-%d'),
+                            '\n'.join(details_str)
+                        )
+                    )
+                else:
+                    # Generic availability error if no specific conflicts found
+                    raise ValidationError(
+                        _("Physical room '%s' is not available for the requested dates "
+                          "(%s to %s). Please choose different dates or another room.") % (
+                            self.room_id.physical_room_code,
+                            self.checkin_date.strftime('%Y-%m-%d'),
+                            self.checkout_date.strftime('%Y-%m-%d')
+                        )
+                    )
 
     @api.depends('checkin_date', 'checkout_date')
     def _compute_duration(self):
@@ -260,24 +263,27 @@ class RoomBookingLine(models.Model):
             },
         )
 
-    @api.onchange('booking_id', 'room_id')
-    def _onchange_booking_id_room_id(self):
+    @api.onchange('booking_id', 'room_id', 'checkin_date', 'checkout_date')
+    def _onchange_booking_and_dates(self):
         """
-        Dynamic domain and date sync:
-          - Hide any room whose physical_room_code is already selected in this booking (excluding self).
-          - Sync dates from booking if they exist
-          - Keep base availability status filter.
+        ENHANCED: Dynamic domain and date sync with improved availability filtering
+        - Shows only rooms that are actually available for the requested dates
+        - Excludes rooms already selected in this booking
+        - Syncs dates from booking automatically
         """
-        # Sync dates from booking
+        # Sync dates from booking first
         if self.booking_id:
             if self.booking_id.checkin_date and not self.checkin_date:
                 self.checkin_date = self.booking_id.checkin_date
             if self.booking_id.checkout_date and not self.checkout_date:
                 self.checkout_date = self.booking_id.checkout_date
 
-        # Dynamic domain
-        domain = [('status', '=', 'available')]
+        # Build dynamic domain
+        domain = []
+        warning_message = None
+
         if self.booking_id:
+            # 1. Exclude physical rooms already selected in this booking
             taken_physical_codes = [
                 l.room_id.physical_room_code
                 for l in self.booking_id.room_line_ids
@@ -287,31 +293,67 @@ class RoomBookingLine(models.Model):
                 domain.append(
                     ('physical_room_code', 'not in', taken_physical_codes))
 
+            # 2. If we have valid dates, filter by availability for those dates
+            if (self.checkin_date and self.checkout_date and
+                    self.checkin_date < self.checkout_date):
+
+                # Get all rooms that don't have conflicting bookings for these dates
+                available_room_ids = []
+                all_rooms = self.env['hotel.room'].search([])
+
+                for room in all_rooms:
+                    if room.check_room_availability(
+                        self.checkin_date,
+                        self.checkout_date,
+                        self.booking_id.id
+                    ):
+                        available_room_ids.append(room.id)
+
+                if available_room_ids:
+                    domain.append(('id', 'in', available_room_ids))
+                else:
+                    # No rooms available for these dates
+                    domain.append(('id', '=', False))  # Show no rooms
+                    warning_message = {
+                        'title': _('No Rooms Available'),
+                        'message': _(
+                            "No rooms are available for the selected dates (%s to %s). "
+                            "Please choose different dates."
+                        ) % (
+                            self.checkin_date.strftime('%Y-%m-%d'),
+                            self.checkout_date.strftime('%Y-%m-%d')
+                        )
+                    }
+
+        # 3. Always exclude rooms under maintenance
+        domain.append(('is_unavailable_for_maintenance', '=', False))
+
         res = {'domain': {'room_id': domain}}
 
-        # Inline validation warnings (non-blocking)
-        if self.room_id:
-            # Duplicate check
-            if self.booking_id:
-                existing_same_physical = self.booking_id.room_line_ids.filtered(
-                    lambda l: l != self and l.room_id and
-                    l.room_id.physical_room_code == self.room_id.physical_room_code
-                )
-                if existing_same_physical:
-                    res['warning'] = {
-                        'title': _('Duplicate Physical Room'),
-                        'message': _(
-                            "Physical Room '%s' is already selected in this booking!\n\n"
-                            "You cannot book the same physical room multiple times with different configurations."
-                        ) % self.room_id.physical_room_code
-                    }
-                    return res
+        if warning_message:
+            res['warning'] = warning_message
+
+        # Additional validation warnings for room selection
+        if self.room_id and self.booking_id:
+            # Check for duplicate physical room
+            existing_same_physical = self.booking_id.room_line_ids.filtered(
+                lambda l: l != self and l.room_id and
+                l.room_id.physical_room_code == self.room_id.physical_room_code
+            )
+            if existing_same_physical:
+                res['warning'] = {
+                    'title': _('Duplicate Physical Room'),
+                    'message': _(
+                        "Physical Room '%s' is already selected in this booking!\n\n"
+                        "You cannot book the same physical room multiple times with different configurations."
+                    ) % self.room_id.physical_room_code
+                }
 
         return res
 
     @api.onchange('room_id')
     def _onchange_room_id(self):
-        """Validate room selection when room changes."""
+        """Enhanced room validation with date-aware conflict detection"""
         if not self.room_id or not self.booking_id:
             return
 
@@ -331,6 +373,49 @@ class RoomBookingLine(models.Model):
                 }
             }
 
+        # Check date-specific availability if dates are set
+        if (self.checkin_date and self.checkout_date and
+                self.checkin_date < self.checkout_date):
+
+            if not self.room_id.check_room_availability(
+                self.checkin_date,
+                self.checkout_date,
+                self.booking_id.id
+            ):
+                # Get conflict details for warning
+                conflicts = self.room_id.get_booking_conflicts_for_dates(
+                    self.checkin_date,
+                    self.checkout_date,
+                    exclude_booking_id=self.booking_id.id
+                )
+
+                if conflicts:
+                    conflict_info = []
+                    for conflict in conflicts[:3]:  # Show max 3 conflicts
+                        conflict_info.append(
+                            f"• {conflict['booking_name']} ({conflict['checkin_date'].strftime('%m/%d')} - {conflict['checkout_date'].strftime('%m/%d')})"
+                        )
+
+                    more_conflicts = ""
+                    if len(conflicts) > 3:
+                        more_conflicts = f"\n... and {len(conflicts) - 3} more conflicts"
+
+                    return {
+                        'warning': {
+                            'title': _('Room Not Available'),
+                            'message': _(
+                                "Physical room '%s' is not available for the requested dates "
+                                "(%s to %s).\n\nConflicting bookings:\n%s%s"
+                            ) % (
+                                self.room_id.physical_room_code,
+                                self.checkin_date.strftime('%Y-%m-%d'),
+                                self.checkout_date.strftime('%Y-%m-%d'),
+                                '\n'.join(conflict_info),
+                                more_conflicts
+                            )
+                        }
+                    }
+
     @api.constrains('room_id', 'booking_id')
     def _constrain_unique_physical_room_per_booking(self):
         """Hard constraint: only one configuration per physical room per booking."""
@@ -342,11 +427,23 @@ class RoomBookingLine(models.Model):
                 )
                 if duplicates:
                     raise ValidationError(
-                        _("You cannot book multiple configurations of the same physical room (%s).")
+                        _("You cannot book multiple configurations of the same physical room (%s) "
+                          "within the same booking.")
                         % line.room_id.physical_room_code
                     )
 
-    # NEW: Method to sync dates from booking (called from booking model)
+    @api.constrains('checkin_date', 'checkout_date')
+    def _constrain_dates(self):
+        """Validate checkin and checkout dates"""
+        for line in self:
+            if line.checkin_date and line.checkout_date:
+                if line.checkout_date <= line.checkin_date:
+                    raise ValidationError(
+                        _("Checkout date must be after checkin date for room %s")
+                        % (line.room_id.display_name if line.room_id else 'selected room')
+                    )
+
+    # Method to sync dates from booking (called from booking model)
     def sync_dates_from_booking(self):
         """Sync checkin/checkout dates from parent booking"""
         for line in self:
@@ -355,3 +452,61 @@ class RoomBookingLine(models.Model):
                     'checkin_date': line.booking_id.checkin_date,
                     'checkout_date': line.booking_id.checkout_date,
                 })
+
+    def get_availability_status_for_dates(self, checkin_date, checkout_date):
+        """
+        NEW: Get availability status for this room line for specific dates
+        Returns dict with availability info
+        """
+        self.ensure_one()
+
+        if not self.room_id:
+            return {'available': False, 'reason': 'No room selected'}
+
+        if self.room_id.is_unavailable_for_maintenance:
+            return {'available': False, 'reason': 'Room under maintenance'}
+
+        if self.room_id.check_room_availability(checkin_date, checkout_date, self.booking_id.id):
+            return {'available': True, 'reason': 'Available'}
+        else:
+            conflicts = self.room_id.get_booking_conflicts_for_dates(
+                checkin_date, checkout_date, exclude_booking_id=self.booking_id.id
+            )
+            if conflicts:
+                return {
+                    'available': False,
+                    'reason': f'Conflicts with {len(conflicts)} booking(s)',
+                    'conflicts': conflicts
+                }
+            else:
+                return {'available': False, 'reason': 'Not available (unknown reason)'}
+
+    def check_future_availability(self, days_ahead=30):
+        """
+        NEW: Check availability for this room for the next X days
+        Useful for suggesting alternative dates
+        """
+        self.ensure_one()
+
+        if not self.room_id or not self.checkin_date or not self.checkout_date:
+            return []
+
+        from datetime import timedelta
+
+        duration = self.checkout_date - self.checkin_date
+        available_periods = []
+
+        # Check availability for each day in the next X days
+        start_date = self.checkin_date
+        for i in range(days_ahead):
+            test_checkin = start_date + timedelta(days=i)
+            test_checkout = test_checkin + duration
+
+            if self.room_id.check_room_availability(test_checkin, test_checkout, self.booking_id.id):
+                available_periods.append({
+                    'checkin': test_checkin,
+                    'checkout': test_checkout,
+                    'duration_days': duration.days
+                })
+
+        return available_periods

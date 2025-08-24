@@ -595,12 +595,10 @@ class RoomBooking(models.Model):
                             'product_type': product_type}
         return booking_dict
 
-       
-
-    
     def _comprehensive_room_status_update(self):
         """
-        Comprehensive room status update that checks all bookings for each physical room
+        ENHANCED: Date-aware comprehensive room status update
+        Updates room statuses based on current active bookings only
         """
         if not self.room_line_ids:
             return
@@ -619,69 +617,16 @@ class RoomBooking(models.Model):
             ('physical_room_code', 'in', list(physical_room_codes))
         ])
 
-        # Clear cache
+        # Clear cache and trigger recomputation
         all_affected_rooms.invalidate_recordset(['status', 'is_room_avail'])
-
-        # For each physical room, check all its configurations
-        for physical_room_code in physical_room_codes:
-            rooms_for_this_physical = all_affected_rooms.filtered(
-                lambda r: r.physical_room_code == physical_room_code
-            )
-
-            # Check if any configuration of this physical room is actively booked
-            active_bookings = self.env['room.booking.line'].search([
-                ('room_id.physical_room_code', '=', physical_room_code),
-                ('booking_id.state', 'in', ['reserved', 'check_in']),
-                ('checkin_date', '<=', fields.Datetime.now()),
-                ('checkout_date', '>', fields.Datetime.now()),
-            ])
-
-            if active_bookings:
-                # Some configuration is booked
-                booked_room_ids = set(active_bookings.mapped('room_id.id'))
-
-                for room in rooms_for_this_physical:
-                    if room.is_unavailable_for_maintenance:
-                        room.write({'status': 'maintenance',
-                                'is_room_avail': False})
-                    elif room.id in booked_room_ids:
-                        # This exact configuration is booked
-                        room.write({'status': 'reserved', 'is_room_avail': False})
-                    else:
-                        # Physical room is occupied by different configuration
-                        room.write({'status': 'unavailable',
-                                'is_room_avail': False})
-            else:
-                # No active bookings for this physical room
-                for room in rooms_for_this_physical:
-                    if room.is_unavailable_for_maintenance:
-                        room.write({'status': 'maintenance',
-                                'is_room_avail': False})
-                    else:
-                        room.write({'status': 'available', 'is_room_avail': True})
-
-
-    def action_cancel(self):
-        """Enhanced cancel method with comprehensive status update"""
-        # Cancel the booking first
-        self.write({"state": "cancel"})
-
-        # Use comprehensive room status update
-        self._comprehensive_room_status_update()
-
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'display_notification',
-            'params': {
-                'type': 'success',
-                'message': "Booking canceled successfully! Room configurations are now available again.",
-                'next': {'type': 'ir.actions.act_window_close'},
-            }
-        }
-
+        
+        # Force recomputation of status for all affected rooms
+        # This will use the enhanced _compute_status method which is now date-aware
+        for room in all_affected_rooms:
+            room._compute_status()
 
     def action_reserve(self):
-        """Enhanced reservation method with comprehensive status update"""
+        """Enhanced reservation method with date-aware availability checking"""
         if self.state == 'reserved':
             message = _("Room Already Reserved.")
             return {
@@ -704,43 +649,46 @@ class RoomBooking(models.Model):
                     _("The room '%s' is currently unavailable for maintenance and cannot be reserved.")
                     % (room_line.room_id.display_name_full if hasattr(room_line.room_id, 'display_name_full') else room_line.room_id.display_name))
 
+            # ENHANCED: Check availability for the specific booking dates
             if not room_line.room_id.check_room_availability(
                     self.checkin_date, self.checkout_date, self.id):
 
-                # Find which specific configuration is conflicting
-                conflicting_bookings = self.env['room.booking.line'].search([
-                    ('room_id.physical_room_code', '=',
-                    room_line.room_id.physical_room_code),
-                    ('booking_id.state', 'in', ['reserved', 'check_in']),
-                    ('checkin_date', '<', self.checkout_date),
-                    ('checkout_date', '>', self.checkin_date),
-                    ('booking_id', '!=', self.id)
-                ])
+                # Get detailed conflict information
+                conflict_details = room_line.room_id.get_booking_conflicts_for_dates(
+                    self.checkin_date, self.checkout_date, exclude_booking_id=self.id
+                )
 
-                conflict_details = []
-                for booking in conflicting_bookings:
-                    room_desc = booking.room_id.display_name_full if hasattr(
-                        booking.room_id, 'display_name_full') else booking.room_id.display_name
-                    conflict_details.append(
-                        f"Booking {booking.booking_id.name} - {room_desc} "
-                        f"({booking.checkin_date.strftime('%Y-%m-%d')} to {booking.checkout_date.strftime('%Y-%m-%d')})"
-                    )
+                if conflict_details:
+                    conflict_messages = []
+                    for conflict in conflict_details:
+                        conflict_messages.append(
+                            f"• {conflict['booking_name']} - {conflict['room_config']} "
+                            f"({conflict['checkin_date'].strftime('%Y-%m-%d')} to {conflict['checkout_date'].strftime('%Y-%m-%d')})"
+                        )
 
-                raise ValidationError(
-                    _("Physical room '%s' is not available for the selected dates "
-                    "(%s to %s).\n\nConflicting bookings:\n%s\n\n"
-                    "The physical room is already booked with a different configuration. "
-                    "Please choose different dates or another room.") % (
-                        room_line.room_id.physical_room_code,
-                        self.checkin_date.strftime('%Y-%m-%d'),
-                        self.checkout_date.strftime('%Y-%m-%d'),
-                        '\n'.join(conflict_details)
-                    ))
+                    raise ValidationError(
+                        _("Physical room '%s' is not available for the selected dates "
+                        "(%s to %s).\n\nConflicting bookings:\n%s\n\n"
+                        "Please choose different dates or another room.") % (
+                            room_line.room_id.physical_room_code,
+                            self.checkin_date.strftime('%Y-%m-%d'),
+                            self.checkout_date.strftime('%Y-%m-%d'),
+                            '\n'.join(conflict_messages)
+                        ))
+                else:
+                    # Generic availability error
+                    raise ValidationError(
+                        _("Physical room '%s' is not available for the selected dates "
+                        "(%s to %s). Please choose different dates or another room.") % (
+                            room_line.room_id.physical_room_code,
+                            self.checkin_date.strftime('%Y-%m-%d'),
+                            self.checkout_date.strftime('%Y-%m-%d')
+                        ))
 
         # Reserve the booking
         self.write({"state": "reserved"})
 
-        # Update room statuses with comprehensive logic
+        # Update room statuses
         self._comprehensive_room_status_update()
 
         return {
@@ -748,16 +696,48 @@ class RoomBooking(models.Model):
             'tag': 'display_notification',
             'params': {
                 'type': 'success',
-                'message': "Rooms reserved successfully! Other configurations of the same physical rooms are now unavailable.",
+                'message': f"Rooms reserved successfully for {self.checkin_date.strftime('%Y-%m-%d')} to {self.checkout_date.strftime('%Y-%m-%d')}!",
                 'next': {'type': 'ir.actions.act_window_close'},
             }
         }
 
+    def action_cancel(self):
+        """Enhanced cancel method with comprehensive status update"""
+        # Cancel the booking first
+        self.write({"state": "cancel"})
+
+        # Use comprehensive room status update
+        self._comprehensive_room_status_update()
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': 'success',
+                'message': "Booking canceled successfully! Room configurations are now available for other dates.",
+                'next': {'type': 'ir.actions.act_window_close'},
+            }
+        }
 
     def action_checkin(self):
         """Check in action with comprehensive status updates"""
         if not self.room_line_ids:
             raise ValidationError(_("Please Enter Room Details"))
+
+        # Additional validation: ensure we're within a reasonable checkin window
+        from datetime import timedelta
+        current_time = fields.Datetime.now()
+        
+        # Allow checkin up to 1 day before scheduled and any time after
+        earliest_checkin = self.checkin_date - timedelta(days=1)
+        
+        if current_time < earliest_checkin:
+            raise ValidationError(
+                _("Cannot check in yet. Check-in is scheduled for %s. "
+                "Early check-in is allowed starting from %s.") % (
+                    self.checkin_date.strftime('%Y-%m-%d %H:%M'),
+                    earliest_checkin.strftime('%Y-%m-%d %H:%M')
+                ))
 
         # Update booking state first
         self.write({"state": "check_in", "is_checkin": True})
@@ -775,14 +755,12 @@ class RoomBooking(models.Model):
             }
         }
 
-
-    # REPLACE your existing action_checkout method (around line 720) with this:
     def action_checkout(self):
-        """Button action_check_out function with comprehensive status updates"""
+        """Enhanced checkout action with comprehensive status updates"""
         # Update booking state first
         self.write({"state": "check_out", "is_checkin": False})
 
-        # Update room statuses comprehensively
+        # Update room statuses comprehensively  
         self._comprehensive_room_status_update()
 
         return {
@@ -790,11 +768,78 @@ class RoomBooking(models.Model):
             'tag': 'display_notification',
             'params': {
                 'type': 'success',
-                'message': "Booking Checked Out Successfully!",
+                'message': "Booking Checked Out Successfully! Rooms are now available for other reservations.",
                 'next': {'type': 'ir.actions.act_window_close'},
             }
         }
 
+    # NEW: Utility method to check booking conflicts for specific dates
+    def check_booking_conflicts_for_dates(self, checkin_date, checkout_date):
+        """
+        Check if this booking would conflict with existing bookings for given dates
+        Returns list of conflicting bookings with details
+        """
+        if not self.room_line_ids:
+            return []
+        
+        conflicts = []
+        for room_line in self.room_line_ids:
+            if room_line.room_id:
+                room_conflicts = room_line.room_id.get_booking_conflicts_for_dates(
+                    checkin_date, checkout_date, exclude_booking_id=self.id
+                )
+                conflicts.extend(room_conflicts)
+        
+        return conflicts
+
+    # NEW: Suggest alternative dates when booking fails
+    def suggest_alternative_dates(self, days_ahead=14):
+        """
+        Suggest alternative dates when the requested dates are not available
+        Returns list of available date ranges
+        """
+        if not self.room_line_ids or not self.checkin_date or not self.checkout_date:
+            return []
+        
+        from datetime import timedelta
+        import logging
+        
+        _logger = logging.getLogger(__name__)
+        
+        # Calculate booking duration
+        duration = self.checkout_date - self.checkin_date
+        
+        # Start checking from the day after the originally requested checkout
+        search_start = self.checkout_date
+        available_periods = []
+        
+        # Check each potential start date
+        for i in range(days_ahead):
+            test_checkin = search_start + timedelta(days=i)
+            test_checkout = test_checkin + duration
+            
+            # Check if all rooms in this booking are available for these dates
+            all_available = True
+            for room_line in self.room_line_ids:
+                if not room_line.room_id.check_room_availability(
+                    test_checkin, test_checkout, self.id
+                ):
+                    all_available = False
+                    break
+            
+            if all_available:
+                available_periods.append({
+                    'checkin_date': test_checkin,
+                    'checkout_date': test_checkout,
+                    'duration_days': duration.days,
+                    'days_from_original': i + 1
+                })
+                
+                # Limit to first 5 suggestions
+                if len(available_periods) >= 5:
+                    break
+        
+        return available_periods
     
     def action_maintenance_request(self):
         """
