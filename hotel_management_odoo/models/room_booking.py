@@ -272,6 +272,25 @@ class RoomBooking(models.Model):
         store=True,
         help="Names of all rooms in this reservation"
     )
+    calendar_end_date = fields.Datetime(
+        string="Calendar End Date",
+        compute='_compute_calendar_end_date',
+        store=True,
+        help="End date for calendar display (checkout date minus 1 day)"
+    )
+
+
+    @api.depends('checkout_date')
+    def _compute_calendar_end_date(self):
+        """Compute calendar end date to show only nights stayed"""
+        from datetime import timedelta
+        for booking in self:
+            if booking.checkout_date:
+                # Subtract 1 day from checkout to show only nights
+                booking.calendar_end_date = booking.checkout_date - \
+                    timedelta(days=1)
+            else:
+                booking.calendar_end_date = booking.checkout_date
 
 
     @api.depends('room_line_ids.room_id')
@@ -283,11 +302,11 @@ class RoomBooking(models.Model):
         
     @api.depends('checkin_date', 'checkout_date')
     def _compute_duration(self):
-        """Compute duration in days"""
+        """Compute duration in nights (not days)"""
         for booking in self:
             if booking.checkin_date and booking.checkout_date:
                 delta = booking.checkout_date - booking.checkin_date
-                booking.duration = delta.days + (1 if delta.seconds > 0 else 0)
+                booking.duration = delta.days  
             else:
                 booking.duration = 0
 
@@ -594,6 +613,7 @@ class RoomBooking(models.Model):
                             'price_unit': line.price_unit,
                             'product_type': product_type}
         return booking_dict
+
 
     def _comprehensive_room_status_update(self):
         """

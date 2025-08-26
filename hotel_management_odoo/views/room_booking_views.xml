@@ -342,9 +342,11 @@
         <field name="model">room.booking</field>
         <field name="arch" type="xml">
             <calendar date_start="checkin_date" 
-                      date_stop="checkout_date" 
-                      string="Bookings Calendar"
-                      color="state">
+                     date_stop="calendar_end_date" 
+                     string="Bookings Calendar (Nights Only)"
+                     color="state"
+                     mode="month"
+                     quick_add="False">
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="state"/>

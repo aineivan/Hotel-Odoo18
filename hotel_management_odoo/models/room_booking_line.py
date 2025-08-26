@@ -210,12 +210,11 @@ class RoomBookingLine(models.Model):
 
     @api.depends('checkin_date', 'checkout_date')
     def _compute_duration(self):
-        """Compute duration from line's own dates."""
+        """Compute duration in nights from line's own dates."""
         for line in self:
             if line.checkin_date and line.checkout_date:
                 delta = line.checkout_date - line.checkin_date
-                # Count an extra day if there's any seconds (cross-day time)
-                line.uom_qty = delta.days + (1 if delta.seconds > 0 else 0)
+                line.uom_qty = delta.days  
             else:
                 line.uom_qty = 0
 
