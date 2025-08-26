@@ -346,7 +346,7 @@
                      string="Bookings Calendar (Nights Only)"
                      color="state"
                      mode="month"
-                     quick_add=0>
+                     >
                 <field name="name"/>
                 <field name="partner_id"/>
                 <field name="state"/>
