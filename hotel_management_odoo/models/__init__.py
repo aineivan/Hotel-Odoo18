@@ -37,4 +37,3 @@ from . import room_booking
 from . import room_booking_line
 from . import service_booking_line
 from . import hotel_room_type
-from . import invoice
