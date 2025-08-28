@@ -302,14 +302,32 @@ class RoomBooking(models.Model):
         
     @api.depends('checkin_date', 'checkout_date')
     def _compute_duration(self):
-        """Compute duration in nights (not days)"""
+        """Compute duration in nights (hotel industry standard)"""
         for booking in self:
             if booking.checkin_date and booking.checkout_date:
-                delta = booking.checkout_date - booking.checkin_date
+                
+                checkin_date = booking.checkin_date.date()
+                checkout_date = booking.checkout_date.date()
+                delta = checkout_date - checkin_date
                 booking.duration = delta.days  
             else:
                 booking.duration = 0
 
+    def reset_all_prices_to_pricelist(self):
+        """Reset all room line prices to pricelist prices"""
+        for line in self.room_line_ids:
+            line.reset_price_to_pricelist()
+
+        # Show success message
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'type': 'success',
+                'message': "All room prices have been reset to pricelist prices.",
+                'next': {'type': 'ir.actions.act_window_close'},
+            }
+        }
     # NEW: Date validation
     @api.constrains('checkin_date', 'checkout_date')
     def _check_dates(self):

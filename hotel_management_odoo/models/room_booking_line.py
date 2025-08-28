@@ -57,7 +57,7 @@ class RoomBookingLine(models.Model):
         string="Duration",
         compute='_compute_duration',
         store=True,
-        help="Duration in days calculated from booking dates"
+        help="Duration in nights calculated from booking dates"
     )
     uom_id = fields.Many2one(
         'uom.uom',
@@ -67,11 +67,25 @@ class RoomBookingLine(models.Model):
         readonly=True
     )
 
+    # MODIFIED: Changed from related field to regular field for editability
     price_unit = fields.Float(
-        related='room_id.list_price',
         string='Rent per Day',
         digits='Product Price',
-        help="The rent price per day for the selected room."
+        help="The rent price per day for the selected room (editable)",
+        required=True,
+    )
+
+    # NEW: Add a computed field to show the original pricelist price for reference
+    pricelist_price = fields.Float(
+        string='Pricelist Price',
+        compute='_compute_pricelist_price',
+        help="Original price from pricelist/room configuration"
+    )
+
+    # NEW: Track if price was manually modified
+    price_manually_set = fields.Boolean(
+        default=False,
+        help="True if price was manually modified by user"
     )
 
     tax_ids = fields.Many2many(
@@ -208,13 +222,39 @@ class RoomBookingLine(models.Model):
                         )
                     )
 
+    @api.depends('room_id', 'booking_id.pricelist_id')
+    def _compute_pricelist_price(self):
+        """Compute the pricelist price for reference"""
+        for line in self:
+            if line.room_id and line.booking_id and line.booking_id.pricelist_id:
+                # Try to get price from pricelist first
+                pricelist = line.booking_id.pricelist_id
+                try:
+                    # Use Odoo's pricelist engine
+                    price = pricelist._get_product_price(
+                        product=line.room_id,
+                        quantity=1.0,
+                        partner=line.booking_id.partner_id,
+                        date=line.booking_id.date_order,
+                        uom_id=line.uom_id
+                    )
+                    line.pricelist_price = price
+                except:
+                    # Fallback to room's list price
+                    line.pricelist_price = line.room_id.list_price if line.room_id else 0.0
+            else:
+                line.pricelist_price = line.room_id.list_price if line.room_id else 0.0
+
     @api.depends('checkin_date', 'checkout_date')
     def _compute_duration(self):
         """Compute duration in nights from line's own dates."""
         for line in self:
             if line.checkin_date and line.checkout_date:
-                delta = line.checkout_date - line.checkin_date
-                line.uom_qty = delta.days  
+                # Calculate nights based on calendar dates, not full 24-hour periods
+                checkin_date = line.checkin_date.date()
+                checkout_date = line.checkout_date.date()
+                delta = checkout_date - checkin_date
+                line.uom_qty = delta.days  # Number of nights
             else:
                 line.uom_qty = 0
 
@@ -352,7 +392,28 @@ class RoomBookingLine(models.Model):
 
     @api.onchange('room_id')
     def _onchange_room_id(self):
-        """Enhanced room validation with date-aware conflict detection"""
+        """Auto-populate price from pricelist when room is selected, but only if not manually set"""
+        if self.room_id and not self.price_manually_set:
+            # Get price from pricelist if available
+            if self.booking_id and self.booking_id.pricelist_id:
+                try:
+                    pricelist = self.booking_id.pricelist_id
+                    price = pricelist._get_product_price(
+                        product=self.room_id,
+                        quantity=1.0,
+                        partner=self.booking_id.partner_id,
+                        date=self.booking_id.date_order,
+                        uom_id=self.uom_id
+                    )
+                    self.price_unit = price
+                except:
+                    # Fallback to room's list price
+                    self.price_unit = self.room_id.list_price
+            else:
+                # No pricelist, use room's list price
+                self.price_unit = self.room_id.list_price
+
+        # Enhanced room validation with date-aware conflict detection
         if not self.room_id or not self.booking_id:
             return
 
@@ -414,6 +475,24 @@ class RoomBookingLine(models.Model):
                             )
                         }
                     }
+
+    @api.onchange('price_unit')
+    def _onchange_price_unit(self):
+        """Track when price is manually changed"""
+        if self.room_id and self.pricelist_price:
+            # Check if the current price differs from pricelist price
+            # Allow for small rounding differences
+            if abs(self.price_unit - self.pricelist_price) > 0.01:
+                self.price_manually_set = True
+            else:
+                self.price_manually_set = False
+
+    def reset_price_to_pricelist(self):
+        """Method to reset price back to pricelist price"""
+        for line in self:
+            if line.pricelist_price:
+                line.price_unit = line.pricelist_price
+                line.price_manually_set = False
 
     @api.constrains('room_id', 'booking_id')
     def _constrain_unique_physical_room_per_booking(self):
