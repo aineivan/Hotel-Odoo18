@@ -27,7 +27,7 @@
                             <div class="col-2">Check in</div>
                             <div class="col-2">Check out</div>
                             <div class="col-2 text-center">Nights</div>
-                            <div class="col-2">Payment</div>
+                            <div class="col-2">Amount Total</div>
                         </div>
                         
                         <t t-foreach="doc.room_line_ids" t-as="line">
@@ -45,15 +45,9 @@
                                     <span t-esc="int(line.uom_qty)"/>
                                 </div>
                                 <div class="col-2">
-                                    <t t-if="doc.invoice_status == 'invoiced' and doc.hotel_invoice_id.payment_state == 'paid'">
-                                        <span class="text-success">PAID &amp; CONFIRMED</span>
-                                    </t>
-                                    <t t-elif="doc.state in ['reserved', 'check_in']">
-                                        <span>CONFIRMED</span>
-                                    </t>
-                                    <t t-else="">
-                                        <span>PENDING</span>
-                                    </t>
+                                    <td class="text-end">
+                                        <span t-field="doc.amount_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                    </td>
                                 </div>
                             </div>
                         </t>
