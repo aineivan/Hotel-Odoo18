@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
     <record id="action_report_sale_order" model="ir.actions.report">
-        <field name="name">Accommodation Voucher</field>
+        <field name="name">Sales Order</field>
         <field name="model">room.booking</field>
         <field name="report_type">qweb-pdf</field>
         <field name="report_name">hotel_management_odoo.report_sale_order</field>
