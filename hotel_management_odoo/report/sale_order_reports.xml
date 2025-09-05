@@ -18,16 +18,16 @@
                         <div class="oe_structure"/>
                         
                         <div class="text-center mt-4 mb-4">
-                            <h2><strong>ACCOMMODATION VOUCHER</strong></h2>
-                            <p class="h4">VOUCHER #<span t-field="doc.name"/></p>
+                            <h2><strong>SALES ORDER</strong></h2>
+                            <p class="h4">ORDER #<span t-field="doc.name"/></p>
                         </div>
 
-                        <div class="row" style="border-top: 1px solid black; border-bottom: 1px solid black; padding: 8px 0;">
-                            <div class="col-4"><strong>Room</strong></div>
-                            <div class="col-2"><strong>Check in</strong></div>
-                            <div class="col-2"><strong>Check out</strong></div>
-                            <div class="col-1 text-center"><strong>Nights</strong></div>
-                            <div class="col-3"><strong>Payment</strong></div>
+                        <div class="row" style="border-top: 1px solid black; border-bottom: 1px solid black; padding: 8px 0; font-weight: bold;">
+                            <div class="col-4">Room</div>
+                            <div class="col-2">Check in</div>
+                            <div class="col-2">Check out</div>
+                            <div class="col-2 text-center">Nights</div>
+                            <div class="col-2">Payment</div>
                         </div>
                         
                         <t t-foreach="doc.room_line_ids" t-as="line">
@@ -41,14 +41,14 @@
                                 <div class="col-2">
                                     <span t-field="line.checkout_date" t-options="{'widget': 'date', 'format': 'MMM d, y'}"/>
                                 </div>
-                                <div class="col-1 text-center">
+                                <div class="col-2 text-center">
                                     <span t-esc="int(line.uom_qty)"/>
                                 </div>
-                                <div class="col-3">
+                                <div class="col-2">
                                     <t t-if="doc.invoice_status == 'invoiced' and doc.hotel_invoice_id.payment_state == 'paid'">
                                         <span class="text-success">PAID &amp; CONFIRMED</span>
                                     </t>
-                                    <t t-elif="doc.state == 'reserved'">
+                                    <t t-elif="doc.state in ['reserved', 'check_in']">
                                         <span>CONFIRMED</span>
                                     </t>
                                     <t t-else="">
@@ -58,12 +58,25 @@
                             </div>
                         </t>
 
-                        <div class="row mt-4">
-                            <div class="col-3" style="background-color: #f2f2f2; padding: 8px;">
-                                <strong>SERVICES &amp; EXTRAS</strong>
+                        <div class="row mt-4" style="border-top: 1px solid black; border-bottom: 1px solid black;">
+                            <div class="col-3" style="font-weight: bold; padding: 8px; border-right: 1px solid black;">
+                                DESCRIPTION
                             </div>
                             <div class="col-9" style="padding: 8px;">
-                                <ul class="list-unstyled">
+                                <t t-if="doc.food_order_line_ids">
+                                    <span t-esc="', '.join(doc.food_order_line_ids.mapped('food_id.name'))"/>
+                                </t>
+                                <t t-else="">
+                                    <span>-</span>
+                                </t>
+                            </div>
+                        </div>
+                        <div class="row" style="border-bottom: 1px solid black;">
+                            <div class="col-3" style="font-weight: bold; padding: 8px; border-right: 1px solid black;">
+                                EXTRAS
+                            </div>
+                            <div class="col-9" style="padding: 8px;">
+                                <ul class="list-unstyled mb-0">
                                     <t t-if="not doc.service_line_ids and not doc.vehicle_line_ids">
                                         <li>No extras selected.</li>
                                     </t>
@@ -88,9 +101,10 @@
                             </div>
                             <div class="col-6">
                                 <h3>Address</h3>
-                                <address t-field="doc.partner_id" t-options='{"widget": "contact", "fields": ["address", "name"], "no_marker": True}'/>
+                                <div t-field="doc.partner_id" t-options='{"widget": "contact", "fields": ["address", "name"], "no_marker": True}'/>
                                 <t t-if="doc.customer_note">
-                                    <p><strong>Additional Information:</strong> <span t-field="doc.customer_note"/></p>
+                                    <p class="mt-2"><strong>Additional Information:</strong><br/>
+                                    <span t-field="doc.customer_note"/></p>
                                 </t>
                             </div>
                         </div>
