@@ -18,7 +18,7 @@
                         <div class="oe_structure"/>
                         
                         <div class="text-center mt-4 mb-4">
-                            <h2><strong>SALES ORDER</strong></h2>
+                            <h2><strong>BOOKING CONFIRMATION</strong></h2>
                             <p class="h4">ORDER #<span t-field="doc.name"/></p>
                         </div>
 
