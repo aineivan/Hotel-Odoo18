@@ -61,8 +61,19 @@
                             <div class="col-9" style="padding: 8px;">
                                 <p class="mt-2">
                                     <strong>1. Cancellation policy:</strong> Free Cancellation 1 day before checkin<br/>
-                                    <strong>2. Payment terms:</strong> Before or at checkin<br/>
-                                    <strong>3. Extras:</strong> 30 minutes massage for 1, fast wifi, One way airport shuttle when arrival / departure details are shared, late/extended checkout to 12 noon or half night price up to 8pm, and complimentary breakfast.
+                                    <strong>2. Payment terms:</strong> Before or at checkin
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- EXTRAS -->
+                        <div class="row mt-4" style="border-top: 1px solid black; border-bottom: 1px solid black;">
+                            <div class="col-3" style="font-weight: bold; padding: 8px; border-right: 1px solid black;">
+                                EXTRAS
+                            </div>
+                            <div class="col-9" style="padding: 8px;">
+                                <p class="mt-2">
+                                    Extras: 30 minutes massage for 1, fast wifi, One way airport shuttle when arrival/departure details are shared, late/extended checkout to 12 noon or half night price up to 8pm, and complimentary breakfast &amp; drinks.
                                 </p>
                             </div>
                         </div>
