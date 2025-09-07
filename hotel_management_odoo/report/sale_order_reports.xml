@@ -58,7 +58,12 @@
                             </div>
                             <div class="col-9" style="padding: 8px;">
                                 <t t-if="doc.food_order_line_ids">
-                                    <span t-esc="', '.join(doc.food_order_line_ids.mapped('food_id.name'))"/>
+                                    <p class="mt-2"><strong>Additional Information:</strong><br/>
+                                    <span t-field="doc.customer_note"/>
+                                    1. Cancellation policy " Free Cancellation 1 day before checkin"
+                                    2. Payment terms: "Before or at checkin "
+                                    3. Extras: 30 minutes massage for 1, fast wifi, One way airport shuttle when arrival / departure details are shared, late/ extended checkout to 12 noon or half night price upto 8pm and complimentary breakfast.
+                                    </p>
                                 </t>
                                 <t t-else="">
                                     <span>-</span>
