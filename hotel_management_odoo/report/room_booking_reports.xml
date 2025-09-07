@@ -18,8 +18,8 @@
                         <div class="oe_structure"/>
                         
                         <div class="text-center mt-4 mb-4">
-                            <h2><strong>ACCOMMODATION VOUCHER</strong></h2>
-                            <p class="h4">VOUCHER #<span t-field="doc.name"/></p>
+                            <h2><strong>BOOKING CONFIRMATION</strong></h2>
+                            <p class="h4">REF : #<span t-field="doc.name"/></p>
                         </div>
 
                         <div class="row" style="border-top: 1px solid black; border-bottom: 1px solid black; padding: 8px 0; font-weight: bold; height: 40px;">
