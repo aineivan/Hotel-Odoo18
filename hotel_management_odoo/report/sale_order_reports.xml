@@ -16,12 +16,14 @@
                 <t t-call="web.external_layout">
                     <div class="page">
                         <div class="oe_structure"/>
-                        
+
+                        <!-- Header -->
                         <div class="text-center mt-4 mb-4">
                             <h2><strong>BOOKING CONFIRMATION</strong></h2>
                             <p class="h4">ORDER #<span t-field="doc.name"/></p>
                         </div>
 
+                        <!-- Table Header -->
                         <div class="row" style="border-top: 1px solid black; border-bottom: 1px solid black; padding: 8px 0; font-weight: bold;">
                             <div class="col-4">Room</div>
                             <div class="col-2">Check in</div>
@@ -29,7 +31,8 @@
                             <div class="col-2 text-center">Nights</div>
                             <div class="col-2">Amount Total</div>
                         </div>
-                        
+
+                        <!-- Room Lines -->
                         <t t-foreach="doc.room_line_ids" t-as="line">
                             <div class="row" style="padding: 8px 0; border-bottom: 1px solid #dee2e6;">
                                 <div class="col-4">
@@ -44,10 +47,8 @@
                                 <div class="col-2 text-center">
                                     <span t-esc="int(line.uom_qty)"/>
                                 </div>
-                                <div class="col-2">
-                                    <td class="text-end">
-                                        <span t-field="doc.amount_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
-                                    </td>
+                                <div class="col-2 text-end">
+                                    <span t-field="doc.amount_total" t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
                                 </div>
                             </div>
                         </t>
@@ -55,7 +56,7 @@
                         <!-- TERMS & CONDITIONS -->
                         <div class="row mt-4" style="border-top: 1px solid black; border-bottom: 1px solid black;">
                             <div class="col-3" style="font-weight: bold; padding: 8px; border-right: 1px solid black;">
-                                TERMS & CONDITIONS
+                                TERMS &amp; CONDITIONS
                             </div>
                             <div class="col-9" style="padding: 8px;">
                                 <p class="mt-2">
@@ -65,7 +66,7 @@
                                 </p>
                             </div>
                         </div>
-                       
+
                         <!-- CUSTOMER DETAILS -->
                         <div class="row mt-5">
                             <div class="col-6">
@@ -81,6 +82,7 @@
                                 <div t-field="doc.partner_id" t-options='{"widget": "contact", "fields": ["address", "name"], "no_marker": True}'/>
                             </div>
                         </div>
+
                     </div>
                 </t>
             </t>
