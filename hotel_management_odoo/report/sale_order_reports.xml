@@ -65,25 +65,7 @@
                                 </t>
                             </div>
                         </div>
-                        <div class="row" style="border-bottom: 1px solid black;">
-                            <div class="col-3" style="font-weight: bold; padding: 8px; border-right: 1px solid black;">
-                                EXTRAS
-                            </div>
-                            <div class="col-9" style="padding: 8px;">
-                                <ul class="list-unstyled mb-0">
-                                    <t t-if="not doc.service_line_ids and not doc.vehicle_line_ids">
-                                        <li>No extras selected.</li>
-                                    </t>
-                                    <li t-foreach="doc.service_line_ids" t-as="service_line">
-                                        <span t-field="service_line.service_id.name"/>
-                                    </li>
-                                    <li t-foreach="doc.vehicle_line_ids" t-as="vehicle_line">
-                                        Vehicle: <span t-field="vehicle_line.fleet_id.name"/>
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-
+                       
                         <div class="row mt-5">
                             <div class="col-6">
                                 <h3>Customer details</h3>
@@ -98,7 +80,11 @@
                                 <div t-field="doc.partner_id" t-options='{"widget": "contact", "fields": ["address", "name"], "no_marker": True}'/>
                                 <t t-if="doc.customer_note">
                                     <p class="mt-2"><strong>Additional Information:</strong><br/>
-                                    <span t-field="doc.customer_note"/></p>
+                                    <span t-field="doc.customer_note"/>
+                                    1. Cancellation policy " Free Cancellation 1 day before checkin"
+                                    2. Payment terms: "Before or at checkin "
+                                    3. Extras: 30 minutes massage for 1, fast wifi, One way airport shuttle when arrival / departure details are shared, late/ extended checkout to 12 noon or half night price upto 8pm and complimentary breakfast.
+                                    </p>
                                 </t>
                             </div>
                         </div>
