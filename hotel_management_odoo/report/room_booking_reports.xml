@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <odoo>
+    <!-- Report Action -->
     <record id="action_report_room_booking" model="ir.actions.report">
         <field name="name">Room Booking Order</field>
         <field name="model">room.booking</field>
@@ -10,6 +11,7 @@
         <field name="binding_type">report</field>
     </record>
 
+    <!-- Report Template -->
     <template id="report_room_booking">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="doc">
@@ -20,7 +22,7 @@
                         <!-- HEADER -->
                         <div class="text-center mt-4 mb-4">
                             <h2><strong>BOOKING CONFIRMATION</strong></h2>
-                            <p class="h4">REF : #<span t-field="doc.name"/></p>
+                            <p class="h4">REF : #<t t-esc="doc.name"/></p>
                         </div>
 
                         <!-- ROOM DETAILS HEADER -->
@@ -36,16 +38,16 @@
                         <t t-foreach="doc.room_line_ids" t-as="line">
                             <div class="row" style="padding: 8px 0; border-bottom: 1px solid #dee2e6;">
                                 <div class="col-4">
-                                    <span t-field="line.room_id.name"/>
+                                    <t t-esc="line.room_id.name"/>
                                 </div>
                                 <div class="col-2">
-                                    <span t-field="line.checkin_date" t-options="{'widget': 'date', 'format': 'MMM d, y'}"/>
+                                    <t t-esc="line.checkin_date.strftime('%b %d, %Y') if line.checkin_date else ''"/>
                                 </div>
                                 <div class="col-2">
-                                    <span t-field="line.checkout_date" t-options="{'widget': 'date', 'format': 'MMM d, y'}"/>
+                                    <t t-esc="line.checkout_date.strftime('%b %d, %Y') if line.checkout_date else ''"/>
                                 </div>
                                 <div class="col-2 text-center">
-                                    <span t-esc="int(line.uom_qty)"/>
+                                    <t t-esc="int(line.uom_qty)"/>
                                 </div>
                                 <div class="col-2">
                                     <t t-if="doc.invoice_status == 'invoiced' and doc.hotel_invoice_id.payment_state == 'paid'">
@@ -85,12 +87,12 @@
                                     <t t-if="not doc.service_line_ids and not doc.vehicle_line_ids">
                                         <li>No extras selected.</li>
                                     </t>
-                                    <li t-foreach="doc.service_line_ids" t-as="service_line">
-                                        <span t-field="service_line.service_id.name"/>
-                                    </li>
-                                    <li t-foreach="doc.vehicle_line_ids" t-as="vehicle_line">
-                                        Vehicle: <span t-field="vehicle_line.fleet_id.name"/>
-                                    </li>
+                                    <t t-foreach="doc.service_line_ids" t-as="service_line">
+                                        <li><t t-esc="service_line.service_id.name"/></li>
+                                    </t>
+                                    <t t-foreach="doc.vehicle_line_ids" t-as="vehicle_line">
+                                        <li>Vehicle: <t t-esc="vehicle_line.fleet_id.name"/></li>
+                                    </t>
                                 </ul>
                             </div>
                         </div>
@@ -100,9 +102,9 @@
                             <div class="col-6">
                                 <h3>Customer details</h3>
                                 <ul class="list-unstyled">
-                                    <li><strong>Customer Name:</strong> <span t-field="doc.partner_id.name"/></li>
-                                    <li><strong>Email address:</strong> <span t-field="doc.partner_id.email"/></li>
-                                    <li><strong>Phone:</strong> <span t-field="doc.partner_id.phone"/></li>
+                                    <li><strong>Customer Name:</strong> <t t-esc="doc.partner_id.name"/></li>
+                                    <li><strong>Email address:</strong> <t t-esc="doc.partner_id.email"/></li>
+                                    <li><strong>Phone:</strong> <t t-esc="doc.partner_id.phone"/></li>
                                 </ul>
                             </div>
                             <div class="col-6">
@@ -110,6 +112,7 @@
                                 <div t-field="doc.partner_id" t-options='{"widget": "contact", "fields": ["address", "name"], "no_marker": True}'/>
                             </div>
                         </div>
+
                     </div>
                 </t>
             </t>
