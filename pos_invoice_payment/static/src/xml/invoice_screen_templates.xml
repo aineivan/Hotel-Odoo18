@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+
+    <!-- Invoice List Screen -->
+    <t t-name="pos_invoice_payment.InvoicingScreen" owl="1">
+        <div class="clientlist-screen screen">
+            <div class="screen-content">
+                <div class="top-content">
+                    <div class="button back" t-on-click="back">
+                        Back
+                    </div>
+                </div>
+
+                <section class="full-content">
+                    <div class="client-window">
+                        <section>
+                            <div class="scrollable-y" style="overflow-y: auto; height: 100vh;">
+                                <table class="table table-striped invoice-list">
+                                    <thead>
+                                        <tr>
+                                            <th>Invoice</th>
+                                            <th>Customer</th>
+                                            <th>Total</th>
+                                            <th>Due</th>
+                                            <th>State</th>
+                                            <th>Payment State</th>
+                                            <th class="text-end">Actions</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <t t-foreach="state.invoices" t-as="invoice" t-key="invoice.invoice_id">
+                                            <tr>
+                                                <td>
+                                                    <t t-if="invoice.payment_reference">
+                                                        <t t-esc="invoice.payment_reference"/>
+                                                    </t>
+                                                    <t t-else="">
+                                                        <t t-esc="invoice.name"/>
+                                                    </t>
+                                                </td>
+
+                                                <td><t t-esc="invoice.partner_name || ''"/></td>
+                                                <td><t t-esc="invoice.amount_total"/></td>
+                                                <td><t t-esc="invoice.amount_residual"/></td>
+                                                <td><t t-esc="invoice.state"/></td>
+                                                <td><t t-esc="invoice.payment_state"/></td>
+
+                                                <td class="text-end">
+                                                    <t t-if="invoice.state === 'draft'">
+                                                        <button class="btn btn-secondary btn-sm"
+                                                                t-on-click="() => this.confirmInvoice(invoice.invoice_id)">
+                                                            Confirm
+                                                        </button>
+                                                    </t>
+
+                                                    <t t-if="invoice.state === 'posted' and invoice.payment_state !== 'paid'">
+                                                        <button class="btn btn-primary btn-sm ms-2"
+                                                                t-on-click="() => this.registerPayment(invoice)">
+                                                            Register Payment
+                                                        </button>
+                                                    </t>
+                                                </td>
+                                            </tr>
+                                        </t>
+
+                                        <t t-if="!state.invoices || state.invoices.length === 0">
+                                            <tr>
+                                                <td colspan="7" class="text-center py-4">
+                                                    No invoices found.
+                                                </td>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </t>
+
+</templates>

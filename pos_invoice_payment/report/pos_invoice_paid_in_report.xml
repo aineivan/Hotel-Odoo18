@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <template id="daily_sale_add_paid_invoices"
+            inherit_id="point_of_sale.pos_session_sales_details">
+
+    <xpath expr="//div[@id='invoices']" position="after">
+      <t t-if="invoice_paid_data">
+        <t t-foreach="invoice_paid_data" t-as="session">
+          <t t-if="session['lines']">
+
+            <div style="margin-top:14px;"/>
+            <div style="font-weight:700; margin-bottom:6px;">
+              Invoices Paid - <span t-esc="session['session_name']"/>
+            </div>
+
+            <table class="table table-sm o_main_table">
+              <thead>
+                <tr>
+                  <th>Invoice</th>
+                  <th class="text-end">Amount</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr t-foreach="session['lines']" t-as="l">
+                  <td><span t-esc="l['name']"/></td>
+                  <td class="text-end">
+                    <span t-esc="l['amount']"
+                          t-options="{'widget':'monetary','display_currency': l['currency']}"/>
+                  </td>
+                </tr>
+              </tbody>
+
+              <tfoot>
+                <tr>
+                  <td><strong>Total</strong></td>
+                  <td class="text-end">
+                    <strong>
+                      <span t-esc="session['total']"
+                            t-options="{'widget':'monetary',
+                                        'display_currency': session['currency']}"/>
+                    </strong>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+
+          </t>
+        </t>
+      </t>
+    </xpath>
+
+  </template>
+</odoo>

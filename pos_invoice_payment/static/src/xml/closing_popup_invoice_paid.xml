@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+    <t t-inherit="point_of_sale.ClosePosPopup" t-inherit-mode="extension">
+        <xpath expr="//div[contains(@class, 'payment-methods-overview')]" position="after">
+            <t t-if="props.invoice_paid_lines and props.invoice_paid_lines.length">
+                <div class="mt-3">
+                    <div class="fw-bold mb-1">Invoices Paid</div>
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            <tr t-foreach="props.invoice_paid_lines" t-as="inv" t-key="inv.id">
+                                <td><t t-esc="inv.name"/></td>
+                                <td class="text-end"><t t-esc="env.utils.formatCurrency(inv.amount)"/></td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td><strong>Total</strong></td>
+                                <td class="text-end">
+                                    <strong t-esc="env.utils.formatCurrency(props.invoice_paid_total || 0)"/>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </t>
+        </xpath>
+    </t>
+</templates>
