@@ -55,7 +55,6 @@ class HotelSummaryDashboard extends Component {
           payment_method_totals:    [],
           payment_grand_total:      0,
           room_occupancy:   { occupied: 0, unoccupied: 0, total_rooms: 0 },
-          meal_plan_totals: [],
         },
         lists: { inventory: [], purchases: [], sales: [], expenses: [], bookings: [] },
       },

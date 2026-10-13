@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from collections import defaultdict
 
-from odoo import _, models
+from odoo import models
 
 # Orders paid (at least partly) via this payment method are comps / give-
 # aways: they still show up in every breakdown (by product, by point of
@@ -225,8 +225,7 @@ class HotelSummaryDashboardData(models.AbstractModel):
         return lines, total_expenses
 
     def get_booking_lines(self, dt_from, dt_to, limit=200):
-        """Room bookings in range: (lines, total_paid_amount, occupancy,
-        meal_plan_totals)."""
+        """Room bookings in range: (lines, total_paid_amount, occupancy)."""
         bookings = self.env['room.booking'].search([
             ('date_order', '>=', dt_from),
             ('date_order', '<=', dt_to),
@@ -260,7 +259,21 @@ class HotelSummaryDashboardData(models.AbstractModel):
                 'state':         booking.state,
             })
 
-        total_paid_amount = sum(bookings.mapped('invoice_amount_paid'))
+        # room.booking has no "amount paid" field of its own (its
+        # hotel_invoice_id field is declared but never populated anywhere
+        # in hotel_management_odoo). The actual link to invoices is done
+        # the same way action_view_invoices/action_done do it: by matching
+        # account.move.ref against the booking name. Paid amount is then
+        # amount_total - amount_residual on each matching posted invoice.
+        invoices = self.env['account.move'].search([
+            ('ref', 'in', bookings.mapped('name')),
+            ('move_type', '=', 'out_invoice'),
+            ('state', '=', 'posted'),
+        ])
+        total_paid_amount = sum(
+            invoice.amount_total - invoice.amount_residual
+            for invoice in invoices
+        )
 
         # Room occupancy is a real-time physical status, not tied to the
         # selected date range -- it answers "right now", same as Stock
@@ -274,16 +287,4 @@ class HotelSummaryDashboardData(models.AbstractModel):
             'total_rooms': total_rooms,
         }
 
-        # Meal plan breakdown for the bookings in this period.
-        meal_plan_labels = dict(
-            bookings._fields['meal_plan']._description_selection(self.env))
-        meal_plan_counts = defaultdict(int)
-        for booking in bookings:
-            label = meal_plan_labels.get(booking.meal_plan) or _('Not Set')
-            meal_plan_counts[label] += 1
-        meal_plan_totals = [
-            {'meal_plan': label, 'count': meal_plan_counts[label]}
-            for label in sorted(meal_plan_counts)
-        ]
-
-        return lines, total_paid_amount, occupancy, meal_plan_totals
+        return lines, total_paid_amount, occupancy
