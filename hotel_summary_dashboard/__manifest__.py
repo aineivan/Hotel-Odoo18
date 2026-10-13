@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "Hotel Summary Dashboard",
-    "version": "18.0.1.1.0",
+    "version": "19.0.1.1.0",
     "summary": "Single-page dashboard: Inventory, Purchases, Gross Sales, Bookings",
     "author":"Native Innovations",
     "category": "Hotel/Reporting",
