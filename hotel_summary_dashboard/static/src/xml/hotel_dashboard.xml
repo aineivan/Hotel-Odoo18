@@ -1,0 +1,429 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+  <t t-name="hotel_summary_dashboard.HotelSummaryDashboard">
+    <div class="o_hotel_dashboard">
+
+      <t t-if="state.loading">
+        <div class="o_view_nocontent">
+          <div class="o_nocontent_help">Loading hotel summary…</div>
+        </div>
+      </t>
+
+      <t t-elif="state.error">
+        <div class="alert alert-danger" role="alert">
+          <t t-esc="state.error"/>
+        </div>
+      </t>
+
+      <t t-else="">
+
+        <!-- ── Date Filter Bar ─────────────────────────────────────────── -->
+        <div class="o_hotel_date_bar d-flex align-items-center gap-3 mb-3 p-2 bg-light rounded">
+          <t t-if="state.canFilter">
+            <span class="fw-semibold text-muted small">Date Range</span>
+
+            <div class="d-flex align-items-center gap-1">
+              <label class="mb-0 small text-muted" for="hsd_date_from">From</label>
+              <input type="date"
+                     id="hsd_date_from"
+                     class="form-control form-control-sm"
+                     style="width: 150px;"
+                     t-att-value="state.dateFrom"
+                     t-att-max="state.dateTo"
+                     t-on-change="onDateFromChange"/>
+            </div>
+
+            <div class="d-flex align-items-center gap-1">
+              <label class="mb-0 small text-muted" for="hsd_date_to">To</label>
+              <input type="date"
+                     id="hsd_date_to"
+                     class="form-control form-control-sm"
+                     style="width: 150px;"
+                     t-att-value="state.dateTo"
+                     t-att-min="state.dateFrom"
+                     t-on-change="onDateToChange"/>
+            </div>
+
+            <button type="button" class="btn btn-sm btn-primary" t-on-click="() => this.reload()">
+              <i class="fa fa-filter me-1"/>Apply
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" t-on-click="() => this.resetToToday()">
+              Today
+            </button>
+          </t>
+          <t t-else="">
+            <span class="fw-semibold text-muted small">
+              <i class="fa fa-lock me-1"/>Showing today's sales only
+            </span>
+          </t>
+
+          <span class="ms-auto small text-muted">
+            ⚡ Stock value is always real-time
+          </span>
+        </div>
+
+        <!-- ── KPI Cards ──────────────────────────────────────────────── -->
+        <div class="o_hotel_cards">
+          <div class="o_hotel_card">
+            <div class="o_hotel_card_title">Total Sales</div>
+            <div class="o_hotel_card_value"><t t-esc="fmtMoney(state.data.cards.total_sales)"/></div>
+          </div>
+          <div class="o_hotel_card">
+            <div class="o_hotel_card_title">Purchases Total</div>
+            <div class="o_hotel_card_value"><t t-esc="fmtMoney(state.data.cards.purchase_total)"/></div>
+          </div>
+          <div class="o_hotel_card">
+            <div class="o_hotel_card_title">Total Expenses</div>
+            <div class="o_hotel_card_value"><t t-esc="fmtMoney(state.data.cards.total_expenses)"/></div>
+          </div>
+          <div class="o_hotel_card">
+            <div class="o_hotel_card_title">Bookings</div>
+            <div class="o_hotel_card_value"><t t-esc="fmtMoney(state.data.cards.total_paid_amount)"/></div>
+          </div>
+          <div class="o_hotel_card">
+            <div class="o_hotel_card_title">Stock Value</div>
+            <div class="o_hotel_card_value"><t t-esc="fmtMoney(state.data.cards.inventory_value)"/></div>
+            <div class="o_hotel_card_subtitle text-muted small">Real-time</div>
+          </div>
+        </div>
+
+        <!-- ── Toolbar ────────────────────────────────────────────────── -->
+        <div class="o_hotel_toolbar">
+          <div class="btn-group" role="group">
+            <button type="button"
+                    t-att-class="state.view === 'sales' ? 'btn btn-primary' : 'btn btn-outline-primary'"
+                    t-on-click="() => this.setView('sales')">Sales Summary</button>
+            <button type="button"
+                    t-att-class="state.view === 'bookings' ? 'btn btn-primary' : 'btn btn-outline-primary'"
+                    t-on-click="() => this.setView('bookings')">Bookings</button>
+            <button type="button"
+                    t-att-class="state.view === 'inventory' ? 'btn btn-primary' : 'btn btn-outline-primary'"
+                    t-on-click="() => this.setView('inventory')">Inventory</button>
+            <button type="button"
+                    t-att-class="state.view === 'purchases' ? 'btn btn-primary' : 'btn btn-outline-primary'"
+                    t-on-click="() => this.setView('purchases')">Purchases</button>
+            <button type="button"
+                    t-att-class="state.view === 'expenses' ? 'btn btn-primary' : 'btn btn-outline-primary'"
+                    t-on-click="() => this.setView('expenses')">Expenses</button>
+          </div>
+
+          <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fa fa-file-pdf-o me-1"/> Download Report
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="#" t-on-click.prevent="() => this.downloadReport('sales')">Sales Summary (PDF)</a></li>
+              <li><a class="dropdown-item" href="#" t-on-click.prevent="() => this.downloadReport('bookings')">Bookings (PDF)</a></li>
+              <li><a class="dropdown-item" href="#" t-on-click.prevent="() => this.downloadReport('inventory')">Inventory (PDF)</a></li>
+              <li><a class="dropdown-item" href="#" t-on-click.prevent="() => this.downloadReport('purchases')">Purchases (PDF)</a></li>
+              <li><a class="dropdown-item" href="#" t-on-click.prevent="() => this.downloadReport('expenses')">Expenses (PDF)</a></li>
+            </ul>
+          </div>
+
+          <div class="input-group" style="max-width: 320px;">
+            <input type="text"
+                   class="form-control"
+                   placeholder="Search…"
+                   t-att-value="state.searchQuery"
+                   t-on-input="onSearchInput"/>
+            <button class="btn btn-outline-secondary" type="button"
+                    t-on-click="clearSearch"
+                    t-if="state.searchQuery">
+              <i class="fa fa-times"/>
+            </button>
+          </div>
+
+          <button type="button" class="btn btn-secondary" t-on-click="() => this.reload()">Reload</button>
+
+          <div class="ms-auto d-flex align-items-center gap-2">
+            <t t-esc="paginationInfo.start"/> – <t t-esc="paginationInfo.end"/> of <t t-esc="paginationInfo.total"/>
+            <button type="button" class="btn btn-sm btn-outline-primary"
+                    t-att-disabled="state.currentPage === 1"
+                    t-on-click="prevPage">
+              <i class="fa fa-chevron-left"/> Prev
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-primary"
+                    t-att-disabled="state.currentPage === totalPages || totalPages === 0"
+                    t-on-click="nextPage">
+              Next <i class="fa fa-chevron-right"/>
+            </button>
+          </div>
+        </div>
+
+        <!-- ── Table ──────────────────────────────────────────────────── -->
+        <div class="table-responsive" style="max-height: 650px; overflow-y: auto;">
+          <table class="table table-sm table-hover">
+
+            <thead style="position: sticky; top: 0; background: #fff; z-index: 10;">
+              <t t-if="state.view === 'inventory'">
+                <tr>
+                  <th>Product</th>
+                  <th class="text-end">Unit Cost</th>
+                  <th class="text-end">Qty Available</th>
+                  <th class="text-end">Value</th>
+                </tr>
+              </t>
+              <t t-elif="state.view === 'purchases'">
+                <tr>
+                  <th>Product</th>
+                  <th>Vendor</th>
+                  <th>Date</th>
+                  <th class="text-end">Qty</th>
+                  <th class="text-end">Unit Price</th>
+                  <th class="text-end">Subtotal</th>
+                </tr>
+              </t>
+              <t t-elif="state.view === 'sales'">
+                <tr style="background: #4472C4; color: white;">
+                  <th style="color: white;">CATEGORY</th>
+                  <th style="color: white;">PRODUCTS</th>
+                  <th class="text-end" style="color: white;">QTY SOLD</th>
+                  <th class="text-end" style="color: white;">TOTAL AMOUNT</th>
+                </tr>
+              </t>
+              <t t-elif="state.view === 'expenses'">
+                <tr>
+                  <th>Employee</th>
+                  <th>Category</th>
+                  <th>Description</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th class="text-end">Amount</th>
+                </tr>
+              </t>
+              <t t-else="">
+                <tr>
+                  <th>Room(s)</th>
+                  <th>Customer</th>
+                  <th>Check-in</th>
+                  <th>Check-out</th>
+                  <th>Status</th>
+                  <th class="text-end">No. of Days</th>
+                  <th class="text-end">Rate</th>
+                  <th class="text-end">Total Amount</th>
+                </tr>
+              </t>
+            </thead>
+
+            <tbody>
+              <t t-if="paginatedList.length === 0">
+                <tr>
+                  <td class="text-muted text-center py-4"
+                      t-att-colspan="state.view === 'inventory' ? 4 : (state.view === 'purchases' ? 6 : (state.view === 'sales' ? 4 : (state.view === 'expenses' ? 6 : 8)))">
+                    <t t-if="state.searchQuery">No results for "<t t-esc="state.searchQuery"/>"</t>
+                    <t t-else="">No records found for the selected date range.</t>
+                  </td>
+                </tr>
+              </t>
+
+              <!-- Inventory (real-time, no date filter) -->
+              <t t-if="state.view === 'inventory'">
+                <t t-foreach="paginatedList" t-as="item" t-key="item.product_id">
+                  <tr>
+                    <td>
+                      <a href="#" t-on-click.prevent="() => this.openProduct(item.product_id)">
+                        <t t-esc="item.product"/>
+                      </a>
+                    </td>
+                    <td class="text-end"><t t-esc="fmtMoney(item.unit_cost)"/></td>
+                    <td class="text-end"><t t-esc="item.qty_available"/></td>
+                    <td class="text-end"><t t-esc="fmtMoney(item.total_value)"/></td>
+                  </tr>
+                </t>
+              </t>
+
+              <!-- Purchases -->
+              <t t-elif="state.view === 'purchases'">
+                <t t-foreach="paginatedList" t-as="item" t-key="item.purchase_line_id">
+                  <tr>
+                    <td>
+                      <a href="#" t-on-click.prevent="() => this.openProduct(item.product_id)">
+                        <t t-esc="item.product"/>
+                      </a>
+                    </td>
+                    <td><t t-esc="item.vendor"/></td>
+                    <td><t t-esc="item.date"/></td>
+                    <td class="text-end"><t t-esc="item.qty"/></td>
+                    <td class="text-end"><t t-esc="fmtMoney(item.unit_price)"/></td>
+                    <td class="text-end">
+                      <a href="#" t-on-click.prevent="() => this.openPurchaseOrder(item.purchase_order_id)">
+                        <t t-esc="fmtMoney(item.subtotal)"/>
+                      </a>
+                    </td>
+                  </tr>
+                </t>
+              </t>
+
+              <!-- Sales Summary (Product-Grouped Sales) -->
+              <t t-elif="state.view === 'sales'">
+                <t t-foreach="paginatedList" t-as="item" t-key="item.product_id">
+                  <tr>
+                    <td><t t-esc="item.category"/></td>
+                    <td>
+                      <a href="#" t-on-click.prevent="() => this.openProduct(item.product_id)">
+                        <t t-esc="item.product"/>
+                      </a>
+                    </td>
+                    <td class="text-end"><t t-esc="item.qty_sold"/></td>
+                    <td class="text-end" t-att-class="item.profit &lt; 0 ? 'text-danger' : ''">
+                      <t t-esc="fmtMoney(item.profit)"/>
+                    </td>
+                  </tr>
+                </t>
+
+                <!-- Summary Section (displayed after pagination ends) -->
+                <t t-if="state.currentPage === totalPages || totalPages === 0">
+                <tr style="background: #f8f9fa; border-top: 2px solid #4472C4;">
+                    <td colspan="4" class="text-center py-3">
+                      <h5 class="mb-3"><strong>Total Sales by Point of Sale</strong></h5>
+                      <table class="table table-sm table-bordered mb-0 mx-auto" style="width: auto; min-width: 400px;">
+                        <t t-if="state.data.cards.sales_by_pos &amp;&amp; state.data.cards.sales_by_pos.length">
+                          <t t-foreach="state.data.cards.sales_by_pos" t-as="pos_total" t-key="pos_total.pos_id">
+                            <tr>
+                              <td class="text-start ps-3"><t t-esc="pos_total.pos"/></td>
+                              <td class="text-end pe-3"><t t-esc="fmtMoney(pos_total.amount)"/></td>
+                            </tr>
+                          </t>
+                        </t>
+                        <tr t-else="">
+                          <td class="text-center text-muted py-2">No point of sale orders in this period.</td>
+                        </tr>
+                      </table>
+
+                      <h5 class="mb-3 mt-4"><strong>Payment Method Summary by Point of Sale</strong></h5>
+                      <t t-if="state.data.cards.payment_breakdown_by_pos &amp;&amp; state.data.cards.payment_breakdown_by_pos.length">
+                        <table t-foreach="state.data.cards.payment_breakdown_by_pos" t-as="pos_breakdown" t-key="pos_breakdown.pos_id"
+                               class="table table-sm table-bordered mb-3 mx-auto" style="width: auto; min-width: 400px;">
+                          <thead>
+                            <tr style="background: #e8f4f8;">
+                              <th colspan="2" class="text-start"><t t-esc="pos_breakdown.pos"/></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr t-foreach="pos_breakdown.methods" t-as="method_total" t-key="method_total.method">
+                              <td class="text-start ps-3"><t t-esc="method_total.method"/></td>
+                              <td class="text-end pe-3"><t t-esc="fmtMoney(method_total.amount)"/></td>
+                            </tr>
+                            <tr style="background: #f8f9fa;">
+                              <td class="text-start ps-3"><strong>Total</strong></td>
+                              <td class="text-end pe-3"><strong><t t-esc="fmtMoney(pos_breakdown.total)"/></strong></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </t>
+                      <p t-else="" class="text-muted text-center">No payments in this period.</p>
+
+                      <h5 class="mb-3 mt-4"><strong>Total by Payment Method (All Points of Sale)</strong></h5>
+                      <table class="table table-sm table-bordered mb-0 mx-auto" style="width: auto; min-width: 400px;">
+                        <tbody>
+                          <tr t-foreach="state.data.cards.payment_method_totals" t-as="method_total" t-key="method_total.method">
+                            <td class="text-start ps-3"><t t-esc="method_total.method"/></td>
+                            <td class="text-end pe-3"><t t-esc="fmtMoney(method_total.amount)"/></td>
+                          </tr>
+                          <tr t-if="!state.data.cards.payment_method_totals || !state.data.cards.payment_method_totals.length">
+                            <td colspan="2" class="text-center text-muted">No payments in this period.</td>
+                          </tr>
+                          <tr style="background: #e8f4f8;">
+                            <td class="text-start ps-3"><strong>Grand Total</strong></td>
+                            <td class="text-end pe-3"><strong><t t-esc="fmtMoney(state.data.cards.payment_grand_total)"/></strong></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr style="height: 20px;">
+                    <td colspan="4" style="border: none;"></td>
+                  </tr>
+
+                </t>
+              </t>
+
+              <!-- Expenses -->
+              <t t-elif="state.view === 'expenses'">
+                <t t-foreach="paginatedList" t-as="item" t-key="item.expense_id">
+                  <tr>
+                    <td><t t-esc="item.employee"/></td>
+                    <td><t t-esc="item.category"/></td>
+                    <td>
+                      <a href="#" t-on-click.prevent="() => this.openExpense(item.expense_id)">
+                        <t t-esc="item.description"/>
+                      </a>
+                    </td>
+                    <td><t t-esc="item.date"/></td>
+                    <td><t t-esc="item.state"/></td>
+                    <td class="text-end"><t t-esc="fmtMoney(item.amount)"/></td>
+                  </tr>
+                </t>
+              </t>
+
+              <!-- Bookings -->
+              <t t-else="">
+                <t t-foreach="paginatedList" t-as="item" t-key="item.booking_id">
+                  <tr>
+                    <td>
+                      <a href="#" t-on-click.prevent="() => this.openBooking(item.booking_id)">
+                        <t t-esc="item.room"/>
+                      </a>
+                    </td>
+                    <td><t t-esc="item.customer"/></td>
+                    <td><t t-esc="item.checkin_date"/></td>
+                    <td><t t-esc="item.checkout_date"/></td>
+                    <td><t t-esc="item.state"/></td>
+                    <td class="text-end"><t t-esc="item.no_of_days"/></td>
+                    <td class="text-end"><t t-esc="fmtMoney(item.rate)"/></td>
+                    <td class="text-end"><t t-esc="fmtMoney(item.total_amount)"/></td>
+                  </tr>
+                </t>
+
+                <!-- Summary Section (displayed after pagination ends) -->
+                <t t-if="state.currentPage === totalPages || totalPages === 0">
+                  <tr style="background: #f8f9fa; border-top: 2px solid #4472C4;">
+                    <td colspan="8" class="text-center py-3">
+                      <h5 class="mb-3">
+                        <strong>Room Occupancy</strong>
+                        <span class="text-muted small">(real-time, not limited by the date range)</span>
+                      </h5>
+                      <table class="table table-sm table-bordered mb-0 mx-auto" style="width: auto; min-width: 400px;">
+                        <tr>
+                          <td class="text-start ps-3"><strong>Total Rooms Occupied</strong></td>
+                          <td class="text-end pe-3"><strong><t t-esc="state.data.cards.room_occupancy.occupied"/></strong></td>
+                        </tr>
+                        <tr style="background: #e8f4f8;">
+                          <td class="text-start ps-3"><strong>Total Rooms Unoccupied</strong></td>
+                          <td class="text-end pe-3"><strong><t t-esc="state.data.cards.room_occupancy.unoccupied"/></strong></td>
+                        </tr>
+                      </table>
+
+                      <h5 class="mb-3 mt-4"><strong>Totals by Meal Plan</strong></h5>
+                      <table class="table table-sm table-bordered mb-0 mx-auto" style="width: auto; min-width: 400px;">
+                        <t t-if="state.data.cards.meal_plan_totals &amp;&amp; state.data.cards.meal_plan_totals.length">
+                          <t t-foreach="state.data.cards.meal_plan_totals" t-as="meal_plan_total" t-key="meal_plan_total.meal_plan">
+                            <tr>
+                              <td class="text-start ps-3"><t t-esc="meal_plan_total.meal_plan"/></td>
+                              <td class="text-end pe-3"><t t-esc="meal_plan_total.count"/></td>
+                            </tr>
+                          </t>
+                        </t>
+                        <tr t-else="">
+                          <td class="text-center text-muted py-2">No bookings in this period.</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr style="height: 20px;">
+                    <td colspan="8" style="border: none;"></td>
+                  </tr>
+                </t>
+              </t>
+
+            </tbody>
+          </table>
+        </div>
+
+      </t>
+    </div>
+  </t>
+
+</templates>
