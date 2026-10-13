@@ -4,8 +4,8 @@ import { patch } from "@web/core/utils/patch";
 import { OrderSummary } from "@point_of_sale/app/screens/product_screen/order_summary/order_summary";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
-import { SelectionPopup } from "@point_of_sale/app/components/popups/selection_popup/selection_popup";
-import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
+import { SelectionPopup } from "@point_of_sale/app/utils/input_popups/selection_popup";
+import { makeAwaitable } from "@point_of_sale/app/store/make_awaitable_dialog";
 
 patch(OrderSummary.prototype, {
   setup() {
@@ -31,7 +31,7 @@ patch(OrderSummary.prototype, {
         return;
       }
 
-      const currentOrder = this.pos.getOrder();
+      const currentOrder = this.pos.get_order();
       const selectionList = waiters.map((waiter) => ({
         id: waiter.id,
         label: waiter.name,
@@ -54,7 +54,7 @@ patch(OrderSummary.prototype, {
   },
 
   async _setWaiterForOrder(waiter) {
-    const currentOrder = this.pos.getOrder();
+    const currentOrder = this.pos.get_order();
     if (!currentOrder) {
       this.notification.add("No active order found", { type: "warning" });
       return;
@@ -79,10 +79,10 @@ patch(OrderSummary.prototype, {
   },
 
   get currentWaiter() {
-    const order = this.pos.getOrder();
+    const order = this.pos.get_order();
     if (order) {
       if (order.waiter_id) return order.waiter_id;
-      const cashier = this.pos.getCashier();
+      const cashier = this.pos.get_cashier();
       const employeeModel = this.pos.models["hr.employee"];
       if (cashier && employeeModel) {
         const emp = employeeModel.getAll().find(
@@ -117,8 +117,8 @@ patch(OrderSummary.prototype, {
   },
 
   async onPrintKOT() {
-    const order = this.pos.getOrder();
-    const orderLines = order ? order.getOrderlines() : [];
+    const order = this.pos.get_order();
+    const orderLines = order ? order.get_orderlines() : [];
 
     if (!order || orderLines.length === 0) {
       this.notification.add("Please add products to the order first!", {
@@ -128,7 +128,7 @@ patch(OrderSummary.prototype, {
     }
 
     if (!order.waiter_id) {
-      const cashier = this.pos.getCashier();
+      const cashier = this.pos.get_cashier();
       const employeeModel = this.pos.models["hr.employee"];
       if (cashier && employeeModel) {
         const matchingEmployee = employeeModel.getAll().find(
@@ -147,7 +147,7 @@ patch(OrderSummary.prototype, {
       const otherItems = [];
 
       orderLines.forEach((line) => {
-        const product = line.getProduct();
+        const product = line.get_product();
         if (!product) return;
 
         let isBarista = false;
@@ -236,7 +236,7 @@ patch(OrderSummary.prototype, {
       baristaItems.forEach((line) => {
         const quantity = line.qty || 1;
         const productName = line.getProduct
-          ? line.getProduct().display_name
+          ? line.get_product().display_name
           : line.product_id?.display_name || "Product";
 
         const noteText = this._getLineNote(line);
@@ -267,7 +267,7 @@ patch(OrderSummary.prototype, {
       kitchenItems.forEach((line) => {
         const quantity = line.qty || 1;
         const productName = line.getProduct
-          ? line.getProduct().display_name
+          ? line.get_product().display_name
           : line.product_id?.display_name || "Product";
 
         const noteText = this._getLineNote(line);
@@ -299,7 +299,7 @@ patch(OrderSummary.prototype, {
       otherItems.forEach((line) => {
         const quantity = line.qty || 1;
         const productName = line.getProduct
-          ? line.getProduct().display_name
+          ? line.get_product().display_name
           : line.product_id?.display_name || "Product";
 
         const noteText = this._getLineNote(line);
@@ -326,7 +326,7 @@ patch(OrderSummary.prototype, {
     const waiterName = this._getWaiterName(order);
 
     const cashierName =
-      (this.pos.getCashier && this.pos.getCashier().name) ||
+      (this.pos.get_cashier && this.pos.get_cashier().name) ||
       this.pos.cashier?.name ||
       this.pos.user?.name ||
       "Unknown";

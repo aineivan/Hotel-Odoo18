@@ -7,7 +7,7 @@ patch(TicketScreen.prototype, {
     shouldHideDeleteButton(order) {
         if (
             order.kot_printed &&
-            this.pos.getCashier()?.role !== 'manager'
+            this.pos.get_cashier()?.role !== 'manager'
         ) {
             return true;
         }

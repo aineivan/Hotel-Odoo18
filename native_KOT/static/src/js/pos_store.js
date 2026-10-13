@@ -1,14 +1,14 @@
 /** @odoo-module */
 
 import { patch } from "@web/core/utils/patch";
-import { PosStore } from "@point_of_sale/app/services/pos_store";
+import { PosStore } from "@point_of_sale/app/store/pos_store";
 import { PosOrder } from "@point_of_sale/app/models/pos_order";
-import { SelectionPopup } from "@point_of_sale/app/components/popups/selection_popup/selection_popup";
-import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
+import { SelectionPopup } from "@point_of_sale/app/utils/input_popups/selection_popup";
+import { makeAwaitable } from "@point_of_sale/app/store/make_awaitable_dialog";
 
 patch(PosStore.prototype, {
     async selectWaiter() {
-        const currentOrder = this.getOrder();
+        const currentOrder = this.get_order();
         if (!currentOrder) {
             this.notification.add("No active order found!", { type: "danger" });
             return;
@@ -62,7 +62,7 @@ patch(PosStore.prototype, {
     },
 
     get currentWaiter() {
-        const order = this.getOrder();
+        const order = this.get_order();
         return order ? order.waiter_id : null;
     },
 });

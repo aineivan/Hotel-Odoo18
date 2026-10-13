@@ -3,7 +3,7 @@ from odoo.exceptions import ValidationError
 
 
 class PosPrinter(models.Model):
-    _inherit = 'pos.category'
+    _inherit = 'pos.printer'
 
     printer_type = fields.Selection(
         selection_add=[('usb', 'USB/Local Printer')],
