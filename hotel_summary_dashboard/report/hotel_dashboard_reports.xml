@@ -275,19 +275,6 @@
                                     </tr>
                                 </tbody>
                             </table>
-
-                            <h5 class="mt-4">Totals by Meal Plan</h5>
-                            <table class="table table-sm table-bordered" style="max-width: 400px;">
-                                <tbody>
-                                    <tr t-foreach="data['meal_plan_totals']" t-as="meal_plan_total">
-                                        <td t-out="meal_plan_total['meal_plan']"/>
-                                        <td class="text-end" t-out="meal_plan_total['count']"/>
-                                    </tr>
-                                    <tr t-if="not data['meal_plan_totals']">
-                                        <td colspan="2" class="text-center text-muted">No bookings in this period.</td>
-                                    </tr>
-                                </tbody>
-                            </table>
                         </t>
                     </div>
                 </t>
