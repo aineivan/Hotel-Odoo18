@@ -62,11 +62,10 @@ class HotelSummaryDashboardReport(models.TransientModel):
                 self.date_from, self.date_to, limit=REPORT_ROW_LIMIT)
             return {"lines": lines, "total": total}
         # bookings
-        lines, total_paid_amount, room_occupancy, meal_plan_totals = \
+        lines, total_paid_amount, room_occupancy = \
             Data.get_booking_lines(dt_from, dt_to, limit=REPORT_ROW_LIMIT)
         return {"lines": lines, "total_paid_amount": total_paid_amount,
-                "room_occupancy": room_occupancy,
-                "meal_plan_totals": meal_plan_totals}
+                "room_occupancy": room_occupancy}
 
     def _period_label(self):
         self.ensure_one()

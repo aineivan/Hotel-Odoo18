@@ -6,7 +6,7 @@ from datetime import date, datetime
 
 class HotelSummaryDashboardController(http.Controller):
 
-    @http.route("/hotel_summary_dashboard/data", type="jsonrpc", auth="user")
+    @http.route("/hotel_summary_dashboard/data", type="json", auth="user")
     def hotel_dashboard_data(self, limit=200, date_from=None, date_to=None):
         limit = int(limit or 200)
         env = request.env
@@ -60,7 +60,7 @@ class HotelSummaryDashboardController(http.Controller):
         expense_lines, total_expenses = Data.get_expense_lines(
             d_from, d_to, limit=limit)
 
-        booking_lines, total_paid_amount, room_occupancy, meal_plan_totals = \
+        booking_lines, total_paid_amount, room_occupancy = \
             Data.get_booking_lines(dt_from, dt_to, limit=limit)
 
         active_bookings = env["room.booking"].search_count([
@@ -85,7 +85,6 @@ class HotelSummaryDashboardController(http.Controller):
                 "payment_method_totals":    payment_method_totals,
                 "payment_grand_total":      payment_grand_total,
                 "room_occupancy":    room_occupancy,
-                "meal_plan_totals":  meal_plan_totals,
             },
             "lists": {
                 "inventory": inventory_lines,

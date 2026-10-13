@@ -395,21 +395,6 @@
                           <td class="text-end pe-3"><strong><t t-esc="state.data.cards.room_occupancy.unoccupied"/></strong></td>
                         </tr>
                       </table>
-
-                      <h5 class="mb-3 mt-4"><strong>Totals by Meal Plan</strong></h5>
-                      <table class="table table-sm table-bordered mb-0 mx-auto" style="width: auto; min-width: 400px;">
-                        <t t-if="state.data.cards.meal_plan_totals &amp;&amp; state.data.cards.meal_plan_totals.length">
-                          <t t-foreach="state.data.cards.meal_plan_totals" t-as="meal_plan_total" t-key="meal_plan_total.meal_plan">
-                            <tr>
-                              <td class="text-start ps-3"><t t-esc="meal_plan_total.meal_plan"/></td>
-                              <td class="text-end pe-3"><t t-esc="meal_plan_total.count"/></td>
-                            </tr>
-                          </t>
-                        </t>
-                        <tr t-else="">
-                          <td class="text-center text-muted py-2">No bookings in this period.</td>
-                        </tr>
-                      </table>
                     </td>
                   </tr>
                   <tr style="height: 20px;">
