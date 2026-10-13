@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+  <data>
+
+    <record id="action_hotel_summary_dashboard" model="ir.actions.client">
+      <field name="name">Hotel Summary</field>
+      <field name="tag">hotel_summary_dashboard.HotelSummaryDashboard</field>
+    </record>
+
+    <menuitem id="menu_hotel_summary_root" name="Hotel Summary" web_icon="hotel_summary_dashboard,static/description/icon.png" sequence="70"/>
+
+    <menuitem id="menu_hotel_summary_dashboard"
+              name="Dashboard"
+              parent="menu_hotel_summary_root"
+              action="action_hotel_summary_dashboard"
+              sequence="10"/>
+
+  </data>
+</odoo>

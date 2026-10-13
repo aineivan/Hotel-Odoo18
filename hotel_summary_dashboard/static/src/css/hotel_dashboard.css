@@ -1,0 +1,32 @@
+.o_hotel_dashboard { padding: 16px; }
+
+.o_hotel_cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.o_hotel_card {
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.o_hotel_card_title { font-weight: 600; opacity: 0.9; }
+
+.o_hotel_card_value {
+  font-size: 24px;
+  font-weight: 800;
+  margin-top: 6px;
+}
+
+.o_hotel_toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}

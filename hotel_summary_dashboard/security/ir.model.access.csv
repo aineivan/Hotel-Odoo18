@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_hotel_summary_dashboard,access_hotel_summary_dashboard,model_hotel_summary_dashboard,base.group_user,1,1,1,1
+access_hotel_summary_dashboard_report,access.hotel.summary.dashboard.report,model_hotel_summary_dashboard_report,base.group_user,1,1,1,0

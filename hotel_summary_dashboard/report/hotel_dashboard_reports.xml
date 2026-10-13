@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="action_report_hotel_dashboard" model="ir.actions.report">
+        <field name="name">Hotel Dashboard Report</field>
+        <field name="model">hotel.summary.dashboard.report</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">hotel_summary_dashboard.report_hotel_dashboard</field>
+        <field name="report_file">hotel_summary_dashboard.report_hotel_dashboard</field>
+        <field name="print_report_name">'%s %s' % (object.report_type, object._period_label())</field>
+    </record>
+
+    <template id="report_hotel_dashboard">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="company" t-value="doc.company_id"/>
+                <t t-call="web.external_layout">
+                    <t t-set="data" t-value="doc._get_data()"/>
+                    <div class="page">
+                        <table class="table table-borderless table-sm mt-3 mb-2">
+                            <tr>
+                                <td class="p-0 border-0 align-middle">
+                                    <h4 class="mb-0 d-inline">
+                                        <t t-if="doc.report_type == 'inventory'">Inventory</t>
+                                        <t t-elif="doc.report_type == 'purchases'">Purchases</t>
+                                        <t t-elif="doc.report_type == 'sales'">Sales Summary</t>
+                                        <t t-elif="doc.report_type == 'expenses'">Expenses</t>
+                                        <t t-elif="doc.report_type == 'bookings'">Bookings</t>
+                                    </h4>
+                                </td>
+                                <td class="p-0 border-0 align-middle text-end">
+                                    <span class="text-muted" t-out="doc._period_label()"/>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- Inventory -->
+                        <t t-if="doc.report_type == 'inventory'">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th class="text-end">Unit Cost</th>
+                                        <th class="text-end">Qty Available</th>
+                                        <th class="text-end">Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="data['lines']" t-as="item">
+                                        <td t-out="item['product']"/>
+                                        <td class="text-end" t-out="'{:,.2f}'.format(item['unit_cost'])"/>
+                                        <td class="text-end" t-out="item['qty_available']"/>
+                                        <td class="text-end" t-out="'{:,.2f}'.format(item['total_value'])"/>
+                                    </tr>
+                                    <tr t-if="not data['lines']">
+                                        <td colspan="4" class="text-center text-muted">No records.</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="fw-bold">
+                                        <td colspan="3">Total Stock Value</td>
+                                        <td class="text-end" t-out="'{:,.2f}'.format(data['total'])"/>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </t>
+
+                        <!-- Purchases -->
+                        <t t-elif="doc.report_type == 'purchases'">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Vendor</th>
+                                        <th>Date</th>
+                                        <th class="text-end">Qty</th>
+                                        <th class="text-end">Unit Price</th>
+                                        <th class="text-end">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="data['lines']" t-as="item">
+                                        <td t-out="item['product']"/>
+                                        <td t-out="item['vendor']"/>
+                                        <td t-out="item['date']"/>
+                                        <td class="text-end" t-out="item['qty']"/>
+                                        <td class="text-end" t-out="'{:,.2f}'.format(item['unit_price'])"/>
+                                        <td class="text-end" t-out="'{:,.2f}'.format(item['subtotal'])"/>
+                                    </tr>
+                                    <tr t-if="not data['lines']">
+                                        <td colspan="6" class="text-center text-muted">No records.</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="fw-bold">
+                                        <td colspan="5">Total Purchases</td>
+                                        <td class="text-end" t-out="'{:,.2f}'.format(data['total'])"/>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </t>
+
+                        <!-- Sales Summary -->
+                        <t t-elif="doc.report_type == 'sales'">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>Product</th>
+                                        <th class="text-end">Qty Sold</th>
+                                        <th class="text-end">Total Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="data['lines']" t-as="item">
+                                        <td t-out="item['category']"/>
+                                        <td t-out="item['product']"/>
+                                        <td class="text-end" t-out="item['qty_sold']"/>
+                                        <td class="text-end" t-out="'{:,.2f}'.format(item['profit'])"/>
+                                    </tr>
+                                    <tr t-if="not data['lines']">
+                                        <td colspan="4" class="text-center text-muted">No records.</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="fw-bold">
+                                        <td colspan="3">Total Sale Amount</td>
+                                        <td class="text-end" t-out="'{:,.2f}'.format(data['total_sales'])"/>
+                                    </tr>
+                                </tfoot>
+                            </table>
+
+                            <h5 class="mt-4">Total Sales by Point of Sale</h5>
+                            <table class="table table-sm table-bordered" style="max-width: 400px;">
+                                <thead>
+                                    <tr>
+                                        <th>Point of Sale</th>
+                                        <th class="text-end">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="data['sales_by_pos']" t-as="pos_total">
+                                        <td t-out="pos_total['pos']"/>
+                                        <td class="text-end" t-out="'{:,.2f}'.format(pos_total['amount'])"/>
+                                    </tr>
+                                    <tr t-if="not data['sales_by_pos']">
+                                        <td colspan="2" class="text-center text-muted">No POS sales in this period.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <h5 class="mt-4">Payment Method Summary by Point of Sale</h5>
+                            <t t-if="data['payment_breakdown_by_pos']">
+                                <table t-foreach="data['payment_breakdown_by_pos']" t-as="pos_breakdown"
+                                       class="table table-sm table-bordered mb-3" style="max-width: 400px;">
+                                    <thead>
+                                        <tr>
+                                            <th colspan="2" t-out="pos_breakdown['pos']"/>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr t-foreach="pos_breakdown['methods']" t-as="method_total">
+                                            <td t-out="method_total['method']"/>
+                                            <td class="text-end" t-out="'{:,.2f}'.format(method_total['amount'])"/>
+                                        </tr>
+                                        <tr class="fw-bold">
+                                            <td>Total</td>
+                                            <td class="text-end" t-out="'{:,.2f}'.format(pos_breakdown['total'])"/>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </t>
+                            <p t-if="not data['payment_breakdown_by_pos']" class="text-muted">No payments in this period.</p>
+
+                            <h5 class="mt-4">Total by Payment Method (All Points of Sale)</h5>
+                            <table class="table table-sm table-bordered" style="max-width: 400px;">
+                                <tbody>
+                                    <tr t-foreach="data['payment_method_totals']" t-as="method_total">
+                                        <td t-out="method_total['method']"/>
+                                        <td class="text-end" t-out="'{:,.2f}'.format(method_total['amount'])"/>
+                                    </tr>
+                                    <tr t-if="not data['payment_method_totals']">
+                                        <td colspan="2" class="text-center text-muted">No payments in this period.</td>
+                                    </tr>
+                                    <tr class="fw-bold">
+                                        <td>Grand Total</td>
+                                        <td class="text-end" t-out="'{:,.2f}'.format(data['payment_grand_total'])"/>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </t>
+
+                        <!-- Expenses -->
+                        <t t-elif="doc.report_type == 'expenses'">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Category</th>
+                                        <th>Description</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="data['lines']" t-as="item">
+                                        <td t-out="item['employee']"/>
+                                        <td t-out="item['category']"/>
+                                        <td t-out="item['description']"/>
+                                        <td t-out="item['date']"/>
+                                        <td t-out="item['state']"/>
+                                        <td class="text-end" t-out="'{:,.2f}'.format(item['amount'])"/>
+                                    </tr>
+                                    <tr t-if="not data['lines']">
+                                        <td colspan="6" class="text-center text-muted">No records.</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="fw-bold">
+                                        <td colspan="5">Total Expenses</td>
+                                        <td class="text-end" t-out="'{:,.2f}'.format(data['total'])"/>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </t>
+
+                        <!-- Bookings -->
+                        <t t-elif="doc.report_type == 'bookings'">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Room(s)</th>
+                                        <th>Customer</th>
+                                        <th>Check-in</th>
+                                        <th>Check-out</th>
+                                        <th>Status</th>
+                                        <th class="text-end">No. of Days</th>
+                                        <th class="text-end">Rate</th>
+                                        <th class="text-end">Total Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="data['lines']" t-as="item">
+                                        <td t-out="item['room']"/>
+                                        <td t-out="item['customer']"/>
+                                        <td t-out="item['checkin_date']"/>
+                                        <td t-out="item['checkout_date']"/>
+                                        <td t-out="item['state']"/>
+                                        <td class="text-end" t-out="item['no_of_days']"/>
+                                        <td class="text-end" t-out="'{:,.2f}'.format(item['rate'])"/>
+                                        <td class="text-end" t-out="'{:,.2f}'.format(item['total_amount'])"/>
+                                    </tr>
+                                    <tr t-if="not data['lines']">
+                                        <td colspan="8" class="text-center text-muted">No records.</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="fw-bold">
+                                        <td colspan="7">Total Paid Amount</td>
+                                        <td class="text-end" t-out="'{:,.2f}'.format(data['total_paid_amount'])"/>
+                                    </tr>
+                                </tfoot>
+                            </table>
+
+                            <h5 class="mt-4">Room Occupancy (real-time, not limited by the date range)</h5>
+                            <table class="table table-sm table-bordered" style="max-width: 400px;">
+                                <tbody>
+                                    <tr>
+                                        <td>Total Rooms Occupied</td>
+                                        <td class="text-end" t-out="data['room_occupancy']['occupied']"/>
+                                    </tr>
+                                    <tr>
+                                        <td>Total Rooms Unoccupied</td>
+                                        <td class="text-end" t-out="data['room_occupancy']['unoccupied']"/>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <h5 class="mt-4">Totals by Meal Plan</h5>
+                            <table class="table table-sm table-bordered" style="max-width: 400px;">
+                                <tbody>
+                                    <tr t-foreach="data['meal_plan_totals']" t-as="meal_plan_total">
+                                        <td t-out="meal_plan_total['meal_plan']"/>
+                                        <td class="text-end" t-out="meal_plan_total['count']"/>
+                                    </tr>
+                                    <tr t-if="not data['meal_plan_totals']">
+                                        <td colspan="2" class="text-center text-muted">No bookings in this period.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </t>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>
