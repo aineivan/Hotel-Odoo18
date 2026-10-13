@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- <record id="report_pos_order_list_waiter_inherit" model="ir.ui.view">
+        <field name="name">report.pos.order.list.waiter.inherit</field>
+        <field name="model">report.pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.report_pos_order_view_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="employee_id" string="Waiter" optional="show"/>
+            </xpath>
+        </field>
+    </record> -->
+
+    <record id="report_pos_order_search_waiter_inherit" model="ir.ui.view">
+        <field name="name">report.pos.order.search.waiter.inherit</field>
+        <field name="model">report.pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_report_pos_order_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//filter[@name='partner_id']" position="after">
+                <filter
+                    string="Waiter"
+                    name="group_by_waiter"
+                    domain="[]"
+                    context="{'group_by': 'employee_id'}"/>
+            </xpath>
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="employee_id" string="Waiter"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="report_pos_order_pivot_waiter_inherit" model="ir.ui.view">
+        <field name="name">report.pos.order.pivot.waiter.inherit</field>
+        <field name="model">report.pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_report_pos_order_pivot"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='product_qty']" position="before">
+                <field name="employee_id" string="Waiter" type="row"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Add Waiter column to POS Orders tree view -->
+    <record id="view_pos_order_tree_waiter_inherit" model="ir.ui.view">
+        <field name="name">pos.order.tree.waiter.inherit</field>
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_order_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="waiter_id" string="Waiter" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Add Waiter filter + group-by to POS Orders search -->
+    <record id="view_pos_order_filter_waiter_inherit" model="ir.ui.view">
+        <field name="name">pos.order.search.waiter.inherit</field>
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_order_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="waiter_id" string="Waiter"/>
+            </xpath>
+            <xpath expr="//filter[@name='customer']" position="after">
+                <filter
+                    string="Waiter"
+                    name="group_by_waiter"
+                    context="{'group_by': 'waiter_id'}"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

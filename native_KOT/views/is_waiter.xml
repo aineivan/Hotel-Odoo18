@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_employee_form_inherit_pos_waiter" model="ir.ui.view">
+        <field name="name">hr.employee.form.inherit.pos.waiter</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='job_title']" position="after">
+                <div class="d-flex align-items-center mt-2">
+                    <field name="is_waiter" style="margin-right: 8px;"/>
+                    <label for="is_waiter" string="Is Waiter" style="font-weight: bold; margin-bottom: 0;"/>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

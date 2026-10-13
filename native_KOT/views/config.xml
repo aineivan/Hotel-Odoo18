@@ -1,0 +1,31 @@
+<odoo>
+    <record id="view_pos_printer_form_kot" model="ir.ui.view">
+        <field name="name">pos.printer.form.kot</field>
+        <field name="model">pos.printer</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_printer_form"/>
+        <field name="arch" type="xml">
+            
+            <!-- Add USB option to printer_type -->
+            <field name="printer_type" position="attributes">
+                <attribute name="selection_add">
+                    [('usb', 'USB/Local Printer')]
+                </attribute>
+            </field>
+            
+            <!-- Add help text -->
+            <field name="product_categories_ids" position="after">
+                <div class="alert alert-info mt-2">
+                    <p><strong>How it works:</strong></p>
+                    <ul>
+                        <li><strong>USB Mode:</strong> All receipts print sequentially on the same printer</li>
+                        <li><strong>Network Mode:</strong> Each receipt prints to its configured IP address</li>
+                        <li><strong>Categories:</strong> Only products in selected categories will appear on this receipt</li>
+                    </ul>
+                    
+                    <p class="mb-0"><strong>Example:</strong> Create separate printer records for "Bar" (Drinks) and "Kitchen" (Food) - even if using the same physical USB printer.</p>
+                </div>
+            </field>
+            
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates id="template" xml:space="preserve">
+
+    <t t-name="KOTReceipt">
+        <div class="kot-receipt">
+            <div class="kot-header">
+                <div class="kot-title">KITCHEN ORDER TICKET</div>
+                <div class="kot-station" t-att-class="station_type">
+                    <t t-if="station_type === 'barista'">
+                        <strong>BARISTA STATION</strong>
+                    </t>
+                    <t t-if="station_type === 'kitchen'">
+                        <strong>KITCHEN STATION</strong>
+                    </t>
+                </div>
+                
+                <!-- Waiter Info -->
+                <div class="kot-waiter" t-if="waiter_name">
+                    Waiter: <strong><t t-esc="waiter_name"/></strong>
+                </div>
+                <div class="kot-cashier">
+                    Created By: <strong><t t-esc="cashier_name"/></strong>
+                </div>
+                <div class="kot-mode" t-if="order_mode">
+                    Mode: <strong><t t-esc="order_mode"/></strong>
+                </div>
+                <div class="kot-customer" t-if="customer_name">
+                    Customer: <strong><t t-esc="customer_name"/></strong>
+                </div>
+            </div>
+
+            <table class="kot-info-table">
+                <tr>
+                    <td>Order #:</td>
+                    <td><strong><t t-esc="order_ref"/></strong></td>
+                </tr>
+                <tr>
+                    <td>Order Time:</td>
+                    <td><t t-esc="order_time"/></td>
+                </tr>
+                <tr t-if="floor_name">
+                    <td>Floor:</td>
+                    <td><t t-esc="floor_name"/></td>
+                </tr>
+                <tr t-if="table_name">
+                    <td>Table:</td>
+                    <td><strong><t t-esc="table_name"/></strong></td>
+                </tr>
+            </table>
+
+            <div class="kot-divider"></div>
+
+            <!-- Order Lines -->
+            <div class="kot-lines">
+                <t t-foreach="orderlines" t-as="line" t-key="line.id">
+                    <div class="kot-line-item">
+                        <div class="kot-line-header">
+                            <span class="kot-qty"><t t-esc="line.quantity"/>x</span>
+                            <span class="kot-product"><t t-esc="line.product_name"/></span>
+                        </div>
+                        
+                        <!-- Product Attributes -->
+                        <t t-if="line.attributes and line.attributes.length">
+                            <div class="kot-attributes">
+                                <t t-foreach="line.attributes" t-as="attr" t-key="attr_index">
+                                    <div>• <t t-esc="attr"/></div>
+                                </t>
+                            </div>
+                        </t>
+                        
+                        <!-- Customer Note -->
+                        <t t-if="line.note">
+                            <div class="kot-note">
+                                <strong>Note:</strong> <t t-esc="line.note"/>
+                            </div>
+                        </t>
+                    </div>
+                </t>
+            </div>
+
+            <div class="kot-divider"></div>
+
+            <!-- Footer -->
+            <div class="kot-footer">
+                <div>Printed: <t t-esc="print_time"/></div>
+                <div class="kot-items-count">
+                    Total Items: <strong><t t-esc="total_items"/></strong>
+                </div>
+            </div>
+        </div>
+    </t>
+
+    <t t-name="KOTReceiptStyle">
+        <style>
+            .kot-receipt {
+                width: 80mm;
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                padding: 10px;
+                margin: 0 auto;
+            }
+            
+            .kot-header {
+                text-align: center;
+                border-bottom: 2px solid #000;
+                padding-bottom: 10px;
+                margin-bottom: 10px;
+            }
+            
+            .kot-title {
+                font-size: 18px;
+                font-weight: bold;
+                margin-bottom: 8px;
+                letter-spacing: 1px;
+            }
+            
+            .kot-station {
+                font-size: 16px;
+                padding: 5px 10px;
+                margin: 8px 0;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            
+            .kot-station.barista {
+                background-color: #e3f2fd;
+                color: #1565c0;
+                border: 2px solid #1565c0;
+            }
+            
+            .kot-station.kitchen {
+                background-color: #fff3e0;
+                color: #e65100;
+                border: 2px solid #e65100;
+            }
+            
+            .kot-waiter {
+                background-color: #f5f5f5;
+                padding: 5px;
+                margin: 5px 0;
+                border-radius: 3px;
+            }
+            
+            .kot-cashier, .kot-mode, .kot-customer {
+                margin: 3px 0;
+                font-size: 11px;
+            }
+            
+            .kot-info-table {
+                width: 100%;
+                margin: 10px 0;
+                font-size: 11px;
+            }
+            
+            .kot-info-table td {
+                padding: 4px 0;
+                border-bottom: 1px dashed #ccc;
+            }
+            
+            .kot-info-table td:first-child {
+                width: 40%;
+                font-weight: bold;
+            }
+            
+            .kot-info-table td:last-child {
+                text-align: right;
+            }
+            
+            .kot-divider {
+                border-top: 2px dashed #000;
+                margin: 10px 0;
+            }
+            
+            .kot-lines {
+                margin: 10px 0;
+            }
+            
+            .kot-line-item {
+                margin-bottom: 12px;
+                padding-bottom: 8px;
+                border-bottom: 1px dashed #ddd;
+            }
+            
+            .kot-line-header {
+                display: flex;
+                align-items: center;
+                font-weight: bold;
+                margin-bottom: 4px;
+            }
+            
+            .kot-qty {
+                min-width: 30px;
+                font-size: 14px;
+            }
+            
+            .kot-product {
+                flex: 1;
+                font-size: 13px;
+            }
+            
+            .kot-attributes {
+                padding-left: 30px;
+                font-size: 11px;
+                color: #555;
+                margin-top: 3px;
+            }
+            
+            .kot-note {
+                padding-left: 30px;
+                margin-top: 5px;
+                font-style: italic;
+                color: #000;
+                background-color: #fffde7;
+                padding: 5px;
+                border-left: 3px solid #fbc02d;
+            }
+            
+            .kot-footer {
+                text-align: center;
+                border-top: 2px solid #000;
+                padding-top: 10px;
+                margin-top: 10px;
+                font-size: 11px;
+            }
+            
+            .kot-items-count {
+                font-size: 13px;
+                margin-top: 5px;
+            }
+            
+            @media print {
+                body {
+                    margin: 0;
+                    padding: 0;
+                }
+                .kot-receipt {
+                    width: 80mm;
+                }
+            }
+        </style>
+    </t>
+
+</templates>
